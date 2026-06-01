@@ -33,3 +33,41 @@ body {
 .input {
   @apply w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3 outline-none focus:ring-4 focus:ring-blue-500/20 dark:bg-white/10 dark:border-white/10;
 }
+
+.card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.72));
+  border: 1px solid rgba(215, 226, 238, 0.9);
+}
+
+.dark .card {
+  background:
+    linear-gradient(180deg, rgba(15,23,42,0.82), rgba(15,23,42,0.62));
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2563eb, #0891b2);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8, #0e7490);
+}
+
+.btn-soft {
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(203,213,225,0.8);
+}
+
+.dark .btn-soft {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.input {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56,189,248,0.18);
+}
