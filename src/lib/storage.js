@@ -1,68 +1,80 @@
 import { DEFAULT_QUESTIONS } from "../data/questions";
-import { SEED_USERS } from "../data/seedUsers";
+import { DEFAULT_USERS } from "../data/seedUsers";
 
-const KEYS = {
-  users: "uapl_users",
-  session: "uapl_session",
-  questions: "uapl_questions",
-  theme: "uapl_theme",
-  quizProgress: "uapl_quiz_progress"
-};
-
-export function initStorage() {
-  if (!localStorage.getItem(KEYS.users)) {
-    localStorage.setItem(KEYS.users, JSON.stringify(SEED_USERS));
-  }
-
-  if (!localStorage.getItem(KEYS.questions)) {
-    localStorage.setItem(KEYS.questions, JSON.stringify(DEFAULT_QUESTIONS));
-  }
-}
+const USERS_KEY = "uapl_lms_users_v1";
+const SESSION_KEY = "uapl_lms_session_v1";
+const QUESTIONS_KEY = "uapl_lms_questions_v1";
+const THEME_KEY = "uapl_lms_theme_v1";
+const COURSE_NOTES_KEY = "uapl_lms_course_notes_v1";
 
 export function getUsers() {
-  return JSON.parse(localStorage.getItem(KEYS.users) || "[]");
+    const saved = localStorage.getItem(USERS_KEY);
+
+    if (!saved) {
+        localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+        return DEFAULT_USERS;
+    }
+
+    return JSON.parse(saved);
 }
 
 export function saveUsers(users) {
-  localStorage.setItem(KEYS.users, JSON.stringify(users));
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
 export function getSession() {
-  return JSON.parse(localStorage.getItem(KEYS.session) || "null");
+    const saved = localStorage.getItem(SESSION_KEY);
+    return saved ? JSON.parse(saved) : null;
 }
 
-export function saveSession(user) {
-  localStorage.setItem(KEYS.session, JSON.stringify(user));
+export function saveSession(session) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
 export function clearSession() {
-  localStorage.removeItem(KEYS.session);
+    localStorage.removeItem(SESSION_KEY);
 }
 
 export function getQuestions() {
-  return JSON.parse(localStorage.getItem(KEYS.questions) || "[]");
+    const saved = localStorage.getItem(QUESTIONS_KEY);
+
+    if (!saved) {
+        localStorage.setItem(QUESTIONS_KEY, JSON.stringify(DEFAULT_QUESTIONS));
+        return DEFAULT_QUESTIONS;
+    }
+
+    return JSON.parse(saved);
 }
 
 export function saveQuestions(questions) {
-  localStorage.setItem(KEYS.questions, JSON.stringify(questions));
+    localStorage.setItem(QUESTIONS_KEY, JSON.stringify(questions));
+}
+
+export function resetQuestions() {
+    localStorage.setItem(QUESTIONS_KEY, JSON.stringify(DEFAULT_QUESTIONS));
+    return DEFAULT_QUESTIONS;
 }
 
 export function getTheme() {
-  return localStorage.getItem(KEYS.theme) || "light";
+    return localStorage.getItem(THEME_KEY) || "light";
 }
 
 export function saveTheme(theme) {
-  localStorage.setItem(KEYS.theme, theme);
+    localStorage.setItem(THEME_KEY, theme);
 }
 
-export function saveQuizProgress(progress) {
-  localStorage.setItem(KEYS.quizProgress, JSON.stringify(progress));
+export function getCourseNotes() {
+    const saved = localStorage.getItem(COURSE_NOTES_KEY);
+
+    if (!saved) {
+        const defaultNotes = [];
+        localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify(defaultNotes));
+        return defaultNotes;
+    }
+
+    return JSON.parse(saved);
 }
 
-export function getQuizProgress() {
-  return JSON.parse(localStorage.getItem(KEYS.quizProgress) || "null");
-}
-
-export function clearQuizProgress() {
-  localStorage.removeItem(KEYS.quizProgress);
+export function saveCourseNotes(notes) {
+    localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify(notes));
 }
