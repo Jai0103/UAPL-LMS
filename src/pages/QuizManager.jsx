@@ -2,9 +2,13 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { getQuestions, saveQuestions } from "../lib/storage";
+import PremiumDialog from "../components/PremiumDialog";
+import Toast from "../components/Toast";
 
 export default function QuizManager({ user }) {
   const [questions, setQuestions] = useState(getQuestions());
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [toast, setToast] = useState(null);
 
   if (user.role !== "admin") return <Navigate to="/" replace />;
 
@@ -33,14 +37,28 @@ export default function QuizManager({ user }) {
     ]);
   }
 
-  function deleteQuestion(index) {
-    setQuestions(questions.filter((_, itemIndex) => itemIndex !== index));
-  }
+function deleteQuestion(index) {
+  setPendingDelete(index);
+}
 
-  function save() {
-    saveQuestions(questions);
-    alert("Questions saved locally.");
-  }
+function confirmDelete() {
+  setQuestions(questions.filter((_, itemIndex) => itemIndex !== pendingDelete));
+  setPendingDelete(null);
+  setToast({
+    type: "success",
+    title: "Question deleted",
+    message: "The question has been removed from the local question bank."
+  });
+}
+
+function save() {
+  saveQuestions(questions);
+  setToast({
+    type: "success",
+    title: "Question bank saved",
+    message: "All quiz and flashcard changes have been saved locally."
+  });
+}
 
   return (
     <div className="space-y-5">
@@ -88,6 +106,18 @@ export default function QuizManager({ user }) {
           <input className="input" value={question.explanation} onChange={(e) => updateQuestion(index, "explanation", e.target.value)} />
         </section>
       ))}
+
+      <PremiumDialog
+  open={pendingDelete !== null}
+  type="warning"
+  title="Delete this question?"
+  message="This action removes the question from the local question bank."
+  confirmText="Delete Question"
+  onConfirm={confirmDelete}
+  onClose={() => setPendingDelete(null)}
+/>
+
+<Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }
