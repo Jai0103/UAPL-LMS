@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Edit3, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { getQuestions, resetQuestions, saveQuestions } from "../lib/storage";
+import PremiumDialog from "../components/PremiumDialog";
 
 const emptyForm = {
     question: "",
@@ -16,6 +17,21 @@ export default function QuizManager() {
     const [questions, setQuestions] = useState(getQuestions());
     const [editingIndex, setEditingIndex] = useState(null);
     const [form, setForm] = useState(emptyForm);
+    const [dialog, setDialog] = useState(null);
+
+    function closeDialog() {
+        setDialog(null);
+    }
+
+    function showMessage(type, title, message) {
+        setDialog({
+            type,
+            title,
+            message,
+            confirmText: "Done",
+            onConfirm: closeDialog
+        });
+    }
 
     function fillForm(question, index) {
         setEditingIndex(index);
@@ -37,7 +53,11 @@ export default function QuizManager() {
 
     function saveQuestion() {
         if (!form.question || !form.optionA || !form.optionB || !form.optionC || !form.optionD) {
-            alert("Please complete the question and all four options.");
+            showMessage(
+                "warning",
+                "Incomplete Question",
+                "Please complete the question text and all four answer options before saving."
+            );
             return;
         }
 
@@ -60,26 +80,73 @@ export default function QuizManager() {
         setQuestions(nextQuestions);
         saveQuestions(nextQuestions);
         clearForm();
+
+        showMessage(
+            "success",
+            editingIndex !== null ? "Question Updated" : "Question Added",
+            "The quiz question has been saved successfully."
+        );
+    }
+
+    function askDeleteQuestion(index) {
+        setDialog({
+            type: "danger",
+            title: "Delete Question?",
+            message: `This will remove question ${index + 1} from the local question bank.`,
+            confirmText: "Delete Question",
+            cancelText: "Cancel",
+            onConfirm: () => deleteQuestion(index),
+            onCancel: closeDialog
+        });
     }
 
     function deleteQuestion(index) {
-        if (!confirm("Delete this question?")) return;
         const nextQuestions = questions.filter((_, itemIndex) => itemIndex !== index);
         setQuestions(nextQuestions);
         saveQuestions(nextQuestions);
         clearForm();
+
+        setDialog({
+            type: "success",
+            title: "Question Deleted",
+            message: "The selected question has been removed successfully.",
+            confirmText: "Done",
+            onConfirm: closeDialog
+        });
+    }
+
+    function askRestoreDefaultQuestions() {
+        setDialog({
+            type: "warning",
+            title: "Reset Question Bank?",
+            message:
+                "This will replace the current local question bank with the default seeded questions.",
+            confirmText: "Reset Questions",
+            cancelText: "Cancel",
+            onConfirm: restoreDefaultQuestions,
+            onCancel: closeDialog
+        });
     }
 
     function restoreDefaultQuestions() {
-        if (!confirm("Reset questions from seed file?")) return;
         const defaults = resetQuestions();
         setQuestions(defaults);
         clearForm();
+
+        setDialog({
+            type: "success",
+            title: "Question Bank Reset",
+            message: "The default seeded questions have been restored successfully.",
+            confirmText: "Done",
+            onConfirm: closeDialog
+        });
     }
 
     return (
         <div className="space-y-6">
-            <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium dark:border-white/10 dark:bg-slate-900/75">
+            <PremiumDialog open={!!dialog} {...dialog} />
+
+            <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
                 <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
                     Admin
                 </p>
@@ -92,7 +159,7 @@ export default function QuizManager() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium dark:border-white/10 dark:bg-slate-900/75">
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
                     <h2 className="mb-4 flex items-center gap-2 text-lg font-black dark:text-white">
                         {editingIndex !== null ? <Edit3 size={20} /> : <Plus size={20} />}
                         {editingIndex !== null ? "Edit Question" : "Add Question"}
@@ -136,30 +203,42 @@ export default function QuizManager() {
                             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                         />
 
-                        <button onClick={saveQuestion} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white">
+                        <button
+                            onClick={saveQuestion}
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                        >
                             <Save size={18} />
                             Save Question
                         </button>
 
-                        <button onClick={clearForm} className="w-full rounded-2xl border px-5 py-3 font-bold dark:text-white">
+                        <button
+                            onClick={clearForm}
+                            className="w-full rounded-2xl border border-slate-200 px-5 py-3 font-black text-slate-700 dark:border-slate-700 dark:text-white"
+                        >
                             Clear
                         </button>
 
-                        <button onClick={restoreDefaultQuestions} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white dark:bg-white dark:text-slate-950">
+                        <button
+                            onClick={askRestoreDefaultQuestions}
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-black text-white dark:bg-white dark:text-slate-950"
+                        >
                             <RotateCcw size={18} />
                             Reset From Seed
                         </button>
                     </div>
                 </div>
 
-                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium dark:border-white/10 dark:bg-slate-900/75">
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
                     <h2 className="mb-4 font-black dark:text-white">
                         Question Bank ({questions.length})
                     </h2>
 
                     <div className="max-h-[760px] space-y-3 overflow-y-auto pr-1">
                         {questions.map((question, index) => (
-                            <div key={question.id || index} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
+                            <div
+                                key={question.id || index}
+                                className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950"
+                            >
                                 <p className="font-black dark:text-white">
                                     Q{index + 1}: {question.question}
                                 </p>
@@ -169,10 +248,16 @@ export default function QuizManager() {
                                 </p>
 
                                 <div className="mt-3 flex gap-2">
-                                    <button onClick={() => fillForm(question, index)} className="rounded-xl bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
+                                    <button
+                                        onClick={() => fillForm(question, index)}
+                                        className="rounded-xl bg-blue-50 px-4 py-2 text-sm font-black text-blue-700"
+                                    >
                                         Edit
                                     </button>
-                                    <button onClick={() => deleteQuestion(index)} className="rounded-xl bg-red-50 px-4 py-2 text-red-700">
+                                    <button
+                                        onClick={() => askDeleteQuestion(index)}
+                                        className="rounded-xl bg-red-50 px-4 py-2 text-red-700"
+                                    >
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
