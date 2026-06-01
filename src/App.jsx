@@ -10,10 +10,20 @@ import QuizManager from "./pages/QuizManager";
 import UserManagement from "./pages/UserManagement";
 import Settings from "./pages/Settings";
 import CourseNotes from "./pages/CourseNotes";
+import ImportBackup from "./pages/ImportBackup";
 
 function ProtectedRoute({ session, children }) {
     if (!session) return <Navigate to="/login" replace />;
     return children;
+
+    <Route
+    path="/import-backup"
+    element={
+        <AdminRoute session={session}>
+            <ImportBackup />
+        </AdminRoute>
+    }
+/>
 }
 
 function AdminRoute({ session, children }) {
