@@ -10,7 +10,8 @@ import {
   Sun,
   Menu,
   X,
-  ClipboardList
+  ClipboardList,
+  FileText
 } from "lucide-react";
 import { useState } from "react";
 import { clearSession } from "../lib/storage";
@@ -20,6 +21,7 @@ const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/quiz", label: "Quiz Mode", icon: BookOpenCheck },
   { to: "/flashcards", label: "Flashcards", icon: Layers },
+  { to: "/course-notes", label: "Course Notes", icon: FileText },
   { to: "/quiz-manager", label: "Quiz Manager", icon: ClipboardList, adminOnly: true },
   { to: "/users", label: "User Management", icon: Users, adminOnly: true },
   { to: "/settings", label: "Settings", icon: Settings }
@@ -114,6 +116,7 @@ export default function Layout({ children, user, onLogout, theme, toggleTheme })
         onConfirm={logout}
         onClose={() => setConfirmLogout(false)}
       />
+      
     </div>
   );
 }
