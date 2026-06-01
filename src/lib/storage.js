@@ -1,5 +1,6 @@
 import { DEFAULT_QUESTIONS } from "../data/questions";
 import { DEFAULT_USERS } from "../data/seedUsers";
+import { DEFAULT_COURSE_NOTES } from "../data/courseNotes";
 
 const USERS_KEY = "uapl_lms_users_v1";
 const SESSION_KEY = "uapl_lms_session_v1";
@@ -35,9 +36,9 @@ export function initStorage() {
         localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify([]));
     }
 
-    if (!localStorage.getItem(THEME_KEY)) {
-        localStorage.setItem(THEME_KEY, "light");
-    }
+if (!localStorage.getItem(COURSE_NOTES_KEY)) {
+    localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify(DEFAULT_COURSE_NOTES));
+}
 }
 
 export function resetLocalData() {
