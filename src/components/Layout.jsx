@@ -16,6 +16,8 @@ import {
 import { useState } from "react";
 import { clearSession } from "../lib/storage";
 import PremiumDialog from "./PremiumDialog";
+import { UploadCloud } from "lucide-react";
+
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -25,6 +27,12 @@ const navItems = [
   { to: "/quiz-manager", label: "Quiz Manager", icon: ClipboardList, adminOnly: true },
   { to: "/users", label: "User Management", icon: Users, adminOnly: true },
   { to: "/settings", label: "Settings", icon: Settings }
+  {
+    label: "Import & Backup",
+    path: "/import-backup",
+    icon: UploadCloud,
+    adminOnly: true
+}
 ];
 
 export default function Layout({ children, user, onLogout, theme, toggleTheme }) {
