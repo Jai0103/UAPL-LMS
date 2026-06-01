@@ -2,9 +2,13 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { getUsers, saveUsers } from "../lib/storage";
+import PremiumDialog from "../components/PremiumDialog";
+import Toast from "../components/Toast";
 
 export default function Users({ user }) {
   const [users, setUsers] = useState(getUsers());
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [toast, setToast] = useState(null);
 
   if (user.role !== "admin") return <Navigate to="/" replace />;
 
@@ -27,15 +31,28 @@ export default function Users({ user }) {
     setUsers(next);
   }
 
-  function deleteUser(index) {
-    setUsers(users.filter((_, itemIndex) => itemIndex !== index));
-  }
+function deleteUser(index) {
+  setPendingDelete(index);
+}
 
-  function save() {
-    saveUsers(users);
-    alert("Users saved locally.");
-  }
+function confirmDelete() {
+  setUsers(users.filter((_, itemIndex) => itemIndex !== pendingDelete));
+  setPendingDelete(null);
+  setToast({
+    type: "success",
+    title: "User removed",
+    message: "The local user account has been removed from this browser."
+  });
+}
 
+function save() {
+  saveUsers(users);
+  setToast({
+    type: "success",
+    title: "Users saved",
+    message: "User changes have been saved locally."
+  });
+}
   return (
     <div className="space-y-5">
       <section className="card flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -64,6 +81,18 @@ export default function Users({ user }) {
           </div>
         ))}
       </section>
+
+      <PremiumDialog
+  open={pendingDelete !== null}
+  type="warning"
+  title="Delete this user?"
+  message="This will remove the user from localStorage on this browser."
+  confirmText="Delete User"
+  onConfirm={confirmDelete}
+  onClose={() => setPendingDelete(null)}
+/>
+
+<Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }
