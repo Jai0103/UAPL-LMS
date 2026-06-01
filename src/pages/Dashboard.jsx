@@ -1,105 +1,232 @@
 import { useMemo, useState } from "react";
-import { BookOpenCheck, Eye, Layers, Pencil, Search, Trophy, Users } from "lucide-react";
-import { getQuestions, getUsers } from "../lib/storage";
-import StatCard from "../components/StatCard";
-import PremiumDialog from "../components/PremiumDialog";
+import {
+    BookOpen,
+    ClipboardList,
+    Eye,
+    Layers,
+    Search,
+    ShieldCheck,
+    Users
+} from "lucide-react";
+import {
+    getCourseNotes,
+    getFlashcards,
+    getQuestions,
+    getUsers
+} from "../lib/storage";
 
-export default function Dashboard({ user }) {
-  const questions = getQuestions();
-  const users = getUsers();
-  const [showUsers, setShowUsers] = useState(false);
-  const [search, setSearch] = useState("");
-  const [selectedUser, setSelectedUser] = useState(null);
+export default function Dashboard({ session }) {
+    const [showUsers, setShowUsers] = useState(false);
+    const [search, setSearch] = useState("");
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((item) =>
-      `${item.name} ${item.username} ${item.role}`.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [users, search]);
+    const users = getUsers();
+    const questions = getQuestions();
+    const flashcards = getFlashcards();
+    const notes = getCourseNotes();
 
-  return (
-    <div className="space-y-6">
-      <section className="card overflow-hidden">
-        <p className="text-xs font-black uppercase tracking-wide text-blue-600">Flight Academy LMS</p>
-        <h1 className="mt-2 text-3xl font-black lg:text-5xl">UAPL Theory Command Center</h1>
-        <p className="mt-3 max-w-2xl text-slate-500 dark:text-slate-400">
-          Premium local learning system for quiz training, flashcard study, course notes, and exam preparation.
-        </p>
-        <p className="mt-4 text-sm font-bold text-slate-400">Built by: Jairus</p>
-      </section>
+    const filteredUsers = useMemo(() => {
+        const keyword = search.toLowerCase();
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Question Bank" value={questions.length} icon={BookOpenCheck} tone="blue" />
-        <StatCard label="Flashcards" value={questions.length} icon={Layers} tone="green" />
+        return users.filter((user) =>
+            `${user.name} ${user.username} ${user.role} ${user.status}`
+                .toLowerCase()
+                .includes(keyword)
+        );
+    }, [users, search]);
 
-        <button
-          className="!m-0 !h-auto !p-0 text-left"
-          onClick={() => user.role === "admin" && setShowUsers(true)}
-        >
-          <StatCard label="Users" value={user.role === "admin" ? users.length : "—"} icon={Users} tone="amber" />
-        </button>
+    const cards = [
+        {
+            label: "Questions",
+            value: questions.length,
+            icon: ClipboardList,
+            color: "bg-blue-600"
+        },
+        {
+            label: "Flashcards",
+            value: flashcards.length,
+            icon: Layers,
+            color: "bg-cyan-600"
+        },
+        {
+            label: "Course Notes",
+            value: notes.length,
+            icon: BookOpen,
+            color: "bg-emerald-600"
+        },
+        {
+            label: "Users",
+            value: users.length,
+            icon: Users,
+            color: "bg-indigo-600"
+        }
+    ];
 
-        <StatCard label="Mode" value="Local" icon={Trophy} tone="slate" />
-      </section>
+    return (
+        <div className="space-y-6">
+            <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
+                            Apollo Global Academy
+                        </p>
 
-      <PremiumDialog
-        open={showUsers}
-        type="info"
-        title={`Registered Users (${users.length})`}
-        message="Local browser accounts only. User changes are stored in localStorage."
-        confirmText="Close"
-        cancelText="Back"
-        onClose={() => {
-          setShowUsers(false);
-          setSelectedUser(null);
-        }}
-      >
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              className="input pl-11"
-              placeholder="Search users..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+                        <h1 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+                            Welcome, {session?.name || "User"}
+                        </h1>
 
-          <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
-            {filteredUsers.map((item, index) => (
-              <div key={item.id} className="rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-white/10 dark:bg-white/10">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-left">
-                    <p className="font-black">{index + 1}. {item.name}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">@{item.username}</p>
-                    <span className="mt-2 inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
-                      {item.role}
-                    </span>
-                  </div>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            Your UAPL training dashboard is ready. Continue your quiz,
+                            review flashcards, or manage training content.
+                        </p>
 
-                  <div className="flex gap-2">
-                    <button className="btn-soft !h-10 !min-h-10 !w-10 !p-0" onClick={() => setSelectedUser(item)}>
-                      <Eye size={17} />
-                    </button>
-                    <button className="btn-soft !h-10 !min-h-10 !w-10 !p-0" onClick={() => window.location.hash = "#/users"}>
-                      <Pencil size={17} />
-                    </button>
-                  </div>
+                        <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            Built by: Jairus
+                        </p>
+                    </div>
+
+                    <div className="rounded-3xl bg-blue-600 px-5 py-4 text-white shadow-lg shadow-blue-600/25">
+                        <div className="flex items-center gap-3">
+                            <ShieldCheck size={28} />
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-wide text-blue-100">
+                                    Access Level
+                                </p>
+                                <p className="text-lg font-black capitalize">
+                                    {session?.role || "student"}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            ))}
-          </div>
+            </section>
 
-          {selectedUser && (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-left dark:border-blue-500/20 dark:bg-blue-500/10">
-              <p className="text-xs font-black uppercase text-blue-600">User Details</p>
-              <p className="mt-2 font-black">{selectedUser.name}</p>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Username: {selectedUser.username}</p>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Role: {selectedUser.role}</p>
-            </div>
-          )}
+            <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                {cards.map((card) => {
+                    const Icon = card.icon;
+
+                    return (
+                        <div
+                            key={card.label}
+                            className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className={`rounded-2xl ${card.color} p-3 text-white`}>
+                                    <Icon size={22} />
+                                </div>
+
+                                {card.label === "Users" && session?.role === "admin" && (
+                                    <button
+                                        onClick={() => setShowUsers(true)}
+                                        className="rounded-xl bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                        aria-label="View users"
+                                    >
+                                        <Eye size={18} />
+                                    </button>
+                                )}
+                            </div>
+
+                            <p className="mt-5 text-sm font-bold text-slate-500 dark:text-slate-400">
+                                {card.label}
+                            </p>
+                            <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+                                {card.value}
+                            </p>
+                        </div>
+                    );
+                })}
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-2">
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                    <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                        Training Overview
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        Use Quiz Mode for assessment practice and Flashcards for quick
+                        recall. Admin users can manage questions, users, course notes,
+                        imports, and backups.
+                    </p>
+                </div>
+
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                    <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                        Local Storage Reminder
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        This system runs fully on GitHub Pages. Download a JSON backup
+                        regularly so your latest users, questions, notes, and flashcards
+                        can be restored if browser data is cleared.
+                    </p>
+                </div>
+            </section>
+
+            {showUsers && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+                    <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/60 bg-white shadow-2xl dark:border-white/10 dark:bg-slate-900">
+                        <div className="border-b border-slate-200 p-5 dark:border-slate-800">
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-950 dark:text-white">
+                                        Users
+                                    </h2>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                                        {users.length} registered local users
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowUsers(false)}
+                                    className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                                <Search size={18} className="text-slate-400" />
+                                <input
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                    placeholder="Search users..."
+                                    className="w-full bg-transparent text-sm outline-none dark:text-white"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="max-h-[56vh] overflow-y-auto p-5">
+                            <div className="space-y-3">
+                                {filteredUsers.map((user) => (
+                                    <div
+                                        key={user.id}
+                                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950"
+                                    >
+                                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                            <div>
+                                                <p className="font-black text-slate-950 dark:text-white">
+                                                    {user.name}
+                                                </p>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                    {user.username} • {user.role} • {user.status || "Active"}
+                                                </p>
+                                            </div>
+
+                                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase text-blue-700 dark:bg-sky-500/10 dark:text-sky-200">
+                                                {user.role}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {filteredUsers.length === 0 && (
+                                    <p className="py-8 text-center text-sm text-slate-500">
+                                        No users found.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-      </PremiumDialog>
-    </div>
-  );
+    );
 }
