@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CheckCircle, Shuffle, TimerReset, Target } from "lucide-react";
 import { getQuestions } from "../lib/storage";
+import PremiumDialog from "../components/PremiumDialog";
 
 function shuffleItems(items) {
   return [...items].sort(() => Math.random() - 0.5);
@@ -12,6 +13,7 @@ export default function Quiz() {
   const [answers, setAnswers] = useState(Array(questions.length).fill(null));
   const [selected, setSelected] = useState(null);
   const [finished, setFinished] = useState(false);
+  const [dialog, setDialog] = useState(null);
 
   const question = questions[index];
 
@@ -25,7 +27,16 @@ export default function Quiz() {
   const accuracy = answeredCount ? Math.round((score / answeredCount) * 100) : 0;
 
   function submit() {
-    if (selected === null || answers[index] !== null) return;
+    if (answers[index] !== null) return;
+
+    if (selected === null) {
+      setDialog({
+        type: "warning",
+        title: "Select an answer",
+        message: "Please choose one option before submitting this question."
+      });
+      return;
+    }
 
     const next = [...answers];
     next[index] = selected;
@@ -55,7 +66,7 @@ export default function Quiz() {
 
     return (
       <section className="card text-center">
-        <p className="text-xs font-black uppercase text-blue-600">Quiz Complete</p>
+        <p className="text-xs font-black uppercase tracking-wide text-blue-600">Quiz Complete</p>
         <h1 className="mt-3 text-5xl font-black text-blue-700 dark:text-blue-300">{score}/{questions.length}</h1>
         <p className="mt-2 text-xl font-bold">Accuracy: {percent}%</p>
         <p className="mt-3 text-slate-500 dark:text-slate-400">
@@ -71,7 +82,9 @@ export default function Quiz() {
       <section className="card">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-black text-slate-500 dark:text-slate-400">Question {index + 1} of {questions.length}</p>
+            <p className="text-sm font-black text-slate-500 dark:text-slate-400">
+              Question {index + 1} of {questions.length}
+            </p>
             <div className="mt-1 flex flex-wrap gap-3 font-black">
               <span>Score: {score}</span>
               <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-300">
@@ -110,11 +123,21 @@ export default function Quiz() {
           ))}
         </div>
 
-        <button className="btn-primary mt-6" onClick={submit} disabled={selected === null}>
+        <button className="btn-primary mt-6" onClick={submit}>
           <CheckCircle size={18} />
           Submit Answer
         </button>
       </section>
+
+      <PremiumDialog
+        open={!!dialog}
+        type={dialog?.type}
+        title={dialog?.title}
+        message={dialog?.message}
+        confirmText="OK"
+        cancelText="Close"
+        onClose={() => setDialog(null)}
+      />
     </div>
   );
 }
