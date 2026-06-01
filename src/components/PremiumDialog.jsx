@@ -1,59 +1,103 @@
-import { AlertTriangle, CheckCircle, Info, X } from "lucide-react";
+import {
+    AlertTriangle,
+    CheckCircle2,
+    Info,
+    ShieldAlert,
+    X
+} from "lucide-react";
+
+const styles = {
+    info: {
+        icon: Info,
+        box: "bg-blue-100 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300",
+        button: "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20"
+    },
+    success: {
+        icon: CheckCircle2,
+        box: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
+        button: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+    },
+    warning: {
+        icon: AlertTriangle,
+        box: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
+        button: "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20"
+    },
+    danger: {
+        icon: ShieldAlert,
+        box: "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300",
+        button: "bg-red-600 hover:bg-red-700 shadow-red-600/20"
+    }
+};
 
 export default function PremiumDialog({
-  open,
-  type = "info",
-  title,
-  message,
-  children,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
-  onConfirm,
-  onClose
+    open,
+    type = "info",
+    title,
+    message,
+    confirmText = "Continue",
+    cancelText,
+    onConfirm,
+    onCancel,
+    onClose
 }) {
-  if (!open) return null;
+    if (!open) return null;
 
-  const iconMap = {
-    info: Info,
-    success: CheckCircle,
-    warning: AlertTriangle
-  };
+    const current = styles[type] || styles.info;
+    const Icon = current.icon;
 
-  const toneMap = {
-    info: "bg-blue-600",
-    success: "bg-emerald-600",
-    warning: "bg-amber-500"
-  };
+    function closeDialog() {
+        if (onClose) onClose();
+        else if (onCancel) onCancel();
+    }
 
-  const Icon = iconMap[type] || Info;
+    return (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/60 p-3 backdrop-blur-sm sm:items-center sm:p-6">
+            <div className="w-full max-w-md rounded-3xl border border-white/60 bg-white p-5 shadow-2xl dark:border-white/10 dark:bg-slate-900 sm:p-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex gap-3">
+                        <div className={`rounded-2xl p-3 ${current.box}`}>
+                            <Icon size={24} />
+                        </div>
 
-  return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm">
-      <section className="w-full max-w-md rounded-3xl border border-white/50 bg-white/90 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
-        <div className="flex items-start justify-between gap-4">
-          <div className={`grid h-12 w-12 place-items-center rounded-2xl text-white ${toneMap[type]}`}>
-            <Icon size={22} />
-          </div>
+                        <div>
+                            <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                                {title}
+                            </h2>
+                            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                                {message}
+                            </p>
+                        </div>
+                    </div>
 
-          <button className="btn-soft !h-10 !min-h-10 !w-10 !p-0" onClick={onClose}>
-            <X size={18} />
-          </button>
+                    <button
+                        onClick={closeDialog}
+                        className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                        aria-label="Close dialog"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    {cancelText && (
+                        <button
+                            onClick={onCancel}
+                            className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+                        >
+                            {cancelText}
+                        </button>
+                    )}
+
+                    <button
+                        onClick={onConfirm}
+                        className={`rounded-2xl px-5 py-3 text-sm font-black text-white shadow-lg transition ${current.button} ${
+                            cancelText ? "" : "sm:col-span-2"
+                        }`}
+                    >
+                        {confirmText}
+                    </button>
+                </div>
+            </div>
         </div>
-
-        <h2 className="mt-5 text-2xl font-black">{title}</h2>
-        {message && <p className="mt-2 text-slate-500 dark:text-slate-400">{message}</p>}
-
-        {children && <div className="mt-5">{children}</div>}
-
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button className="btn-soft" onClick={onClose}>{cancelText}</button>
-          {onConfirm && (
-            <button className={type === "warning" ? "bg-red-600 hover:bg-red-700" : "btn-primary"} onClick={onConfirm}>
-              {confirmText}
-            </button>
-          )}
-        </div>
-      </section>
-    </div>
-  );
+    );
 }
