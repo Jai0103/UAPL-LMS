@@ -9,6 +9,9 @@ import Flashcards from "./pages/Flashcards";
 import QuizManager from "./pages/QuizManager";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
+import CourseNotes from "./pages/CourseNotes";
+
+<Route path="/course-notes" element={<CourseNotes user={user} />} />
 
 export default function App() {
   const [user, setUser] = useState(null);
