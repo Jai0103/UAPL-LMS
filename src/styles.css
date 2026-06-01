@@ -71,3 +71,51 @@ body {
   border-color: #38bdf8;
   box-shadow: 0 0 0 4px rgba(56,189,248,0.18);
 }
+
+.card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.76));
+  border: 1px solid rgba(215, 226, 238, 0.9);
+}
+
+.dark .card {
+  background:
+    linear-gradient(180deg, rgba(15,23,42,0.84), rgba(15,23,42,0.64));
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2563eb, #0891b2);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8, #0e7490);
+}
+
+.btn-soft {
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(203,213,225,0.8);
+}
+
+.dark .btn-soft {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.input {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56,189,248,0.18);
+}
+
+.glass {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.62));
+}
+
+.dark .glass {
+  background:
+    linear-gradient(180deg, rgba(15,23,42,0.86), rgba(15,23,42,0.68));
+}
