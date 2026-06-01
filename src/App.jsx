@@ -7,46 +7,90 @@ import Dashboard from "./pages/Dashboard";
 import Quiz from "./pages/Quiz";
 import Flashcards from "./pages/Flashcards";
 import QuizManager from "./pages/QuizManager";
-import Users from "./pages/Users";
+import UserManagement from "./pages/UserManagement";
 import Settings from "./pages/Settings";
 import CourseNotes from "./pages/CourseNotes";
 
-<Route path="/course-notes" element={<CourseNotes user={user} />} />
+function ProtectedRoute({ session, children }) {
+    if (!session) return <Navigate to="/login" replace />;
+    return children;
+}
+
+function AdminRoute({ session, children }) {
+    if (!session) return <Navigate to="/login" replace />;
+    if (session.role !== "admin") return <Navigate to="/dashboard" replace />;
+    return children;
+}
 
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [theme, setTheme] = useState("light");
+    const [session, setSession] = useState(null);
+    const [theme, setTheme] = useState("light");
 
-  useEffect(() => {
-    initStorage();
-    const savedTheme = getTheme();
-    setTheme(savedTheme);
-    document.documentElement.classList.toggle("dark", savedTheme === "dark");
-    setUser(getSession());
-  }, []);
+    useEffect(() => {
+        initStorage();
 
-  function toggleTheme() {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    saveTheme(nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
-  }
+        const savedTheme = getTheme();
+        const savedSession = getSession();
 
-  if (!user) {
-    return <Login onLogin={setUser} />;
-  }
+        setTheme(savedTheme);
+        setSession(savedSession);
 
-  return (
-    <Layout user={user} onLogout={() => setUser(null)} theme={theme} toggleTheme={toggleTheme}>
-      <Routes>
-        <Route path="/" element={<Dashboard user={user} />} />
-        <Route path="/quiz" element={<Quiz />} />
-        <Route path="/flashcards" element={<Flashcards />} />
-        <Route path="/quiz-manager" element={<QuizManager user={user} />} />
-        <Route path="/users" element={<Users user={user} />} />
-        <Route path="/settings" element={<Settings theme={theme} toggleTheme={toggleTheme} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
-  );
-}
+        document.documentElement.classList.toggle("dark", savedTheme === "dark");
+    }, []);
+
+    function handleLogin(nextSession) {
+        setSession(nextSession);
+    }
+
+    function handleLogout() {
+        setSession(null);
+    }
+
+    function toggleTheme() {
+        const nextTheme = theme === "dark" ? "light" : "dark";
+        setTheme(nextTheme);
+        saveTheme(nextTheme);
+        document.documentElement.classList.toggle("dark", nextTheme === "dark");
+    }
+
+    return (
+        <Routes>
+            <Route
+                path="/login"
+                element={
+                    session ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <Login onLogin={handleLogin} />
+                    )
+                }
+            />
+
+            <Route
+                path="/"
+                element={
+                    session ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <Navigate to="/login" replace />
+                    )
+                }
+            />
+
+            <Route
+                element={
+                    <ProtectedRoute session={session}>
+                        <Layout
+                            session={session}
+                            theme={theme}
+                            onThemeToggle={toggleTheme}
+                            onLogout={handleLogout}
+                        />
+                    </ProtectedRoute>
+                }
+            >
+                <Route path="/dashboard" element={<Dashboard session={session} />} />
+                <Route path="/quiz" element={<Quiz session={session} />} />
+                <Route path="/flashcards" element={<Flashcards session={session} />} />
+                <Route path="/course-notes" element={<CourseNotes session={session} />} />
+                <Route path="/settings" element={<Settings session={session
