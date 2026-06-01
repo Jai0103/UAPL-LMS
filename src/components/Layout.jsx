@@ -16,55 +16,22 @@ import {
     X
 } from "lucide-react";
 import { clearSession } from "../lib/storage";
+import PremiumDialog from "./PremiumDialog";
 
 const navItems = [
-    {
-        label: "Dashboard",
-        path: "/dashboard",
-        icon: LayoutDashboard
-    },
-    {
-        label: "Quiz Mode",
-        path: "/quiz",
-        icon: ClipboardList
-    },
-    {
-        label: "Flashcards",
-        path: "/flashcards",
-        icon: Layers
-    },
-    {
-        label: "Course Notes",
-        path: "/course-notes",
-        icon: FileText
-    },
-    {
-        label: "Quiz Manager",
-        path: "/quiz-manager",
-        icon: Settings2,
-        adminOnly: true
-    },
-    {
-        label: "User Management",
-        path: "/users",
-        icon: Users,
-        adminOnly: true
-    },
-    {
-        label: "Import & Backup",
-        path: "/import-backup",
-        icon: UploadCloud,
-        adminOnly: true
-    },
-    {
-        label: "Settings",
-        path: "/settings",
-        icon: Settings
-    }
+    { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { label: "Quiz Mode", path: "/quiz", icon: ClipboardList },
+    { label: "Flashcards", path: "/flashcards", icon: Layers },
+    { label: "Course Notes", path: "/course-notes", icon: FileText },
+    { label: "Quiz Manager", path: "/quiz-manager", icon: Settings2, adminOnly: true },
+    { label: "User Management", path: "/users", icon: Users, adminOnly: true },
+    { label: "Import & Backup", path: "/import-backup", icon: UploadCloud, adminOnly: true },
+    { label: "Settings", path: "/settings", icon: Settings }
 ];
 
 export default function Layout({ session, theme, onThemeToggle, onLogout }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [confirmLogout, setConfirmLogout] = useState(false);
     const navigate = useNavigate();
 
     const visibleNavItems = navItems.filter((item) => {
@@ -72,19 +39,27 @@ export default function Layout({ session, theme, onThemeToggle, onLogout }) {
         return true;
     });
 
-    function handleLogout() {
-        const confirmed = window.confirm("Are you sure you want to logout?");
-
-        if (!confirmed) return;
-
+    function logoutNow() {
         clearSession();
         onLogout();
+        setConfirmLogout(false);
         navigate("/login");
     }
 
     return (
         <div className="min-h-screen bg-slate-100 text-slate-900 transition dark:bg-slate-950 dark:text-white">
-            <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(20,184,166,0.14),transparent_30%)]" />
+            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(20,184,166,0.14),transparent_30%)]" />
+
+            <PremiumDialog
+                open={confirmLogout}
+                type="warning"
+                title="Confirm Logout"
+                message="You are about to sign out from the UAPL training portal. Any saved local progress will remain in this browser."
+                confirmText="Logout"
+                cancelText="Stay Logged In"
+                onConfirm={logoutNow}
+                onCancel={() => setConfirmLogout(false)}
+            />
 
             <button
                 onClick={() => setSidebarOpen(true)}
@@ -103,7 +78,7 @@ export default function Layout({ session, theme, onThemeToggle, onLogout }) {
             )}
 
             <aside
-                className={`fixed left-0 top-0 z-50 flex h-full w-80 flex-col border-r border-white/20 bg-white/85 p-5 shadow-premium backdrop-blur-2xl transition-transform duration-300 dark:border-white/10 dark:bg-slate-900/85 lg:translate-x-0 ${
+                className={`fixed left-0 top-0 z-50 flex h-full w-[86vw] max-w-80 flex-col border-r border-white/20 bg-white/90 p-5 shadow-premium backdrop-blur-2xl transition-transform duration-300 dark:border-white/10 dark:bg-slate-900/90 lg:translate-x-0 ${
                     sidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
             >
@@ -168,15 +143,15 @@ export default function Layout({ session, theme, onThemeToggle, onLogout }) {
                 <div className="mt-5 space-y-2">
                     <button
                         onClick={onThemeToggle}
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
                     >
                         {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
                         {theme === "dark" ? "Light Mode" : "Dark Mode"}
                     </button>
 
                     <button
-                        onClick={handleLogout}
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                        onClick={() => setConfirmLogout(true)}
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                     >
                         <LogOut size={18} />
                         Logout
@@ -184,7 +159,7 @@ export default function Layout({ session, theme, onThemeToggle, onLogout }) {
                 </div>
             </aside>
 
-            <main className="relative z-10 min-h-screen px-4 py-6 lg:ml-80 lg:px-8">
+            <main className="relative z-10 min-h-screen px-4 py-20 sm:py-8 lg:ml-80 lg:px-8">
                 <div className="mx-auto max-w-7xl">
                     <Outlet />
                 </div>
