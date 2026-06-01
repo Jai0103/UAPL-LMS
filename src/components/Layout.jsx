@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { clearSession } from "../lib/storage";
+import PremiumDialog from "./PremiumDialog";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -26,6 +27,7 @@ const navItems = [
 
 export default function Layout({ children, user, onLogout, theme, toggleTheme }) {
   const [open, setOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const location = useLocation();
 
   function logout() {
@@ -40,7 +42,7 @@ export default function Layout({ children, user, onLogout, theme, toggleTheme })
       <aside className={`fixed inset-y-0 left-0 z-40 w-72 glass p-4 transition lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-black uppercase text-blue-600">Apollo Global Academy</p>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-600">Apollo Global Academy</p>
             <h1 className="text-xl font-black">UAPL Portal</h1>
           </div>
           <button className="btn-soft !w-10 !p-0 lg:hidden" onClick={() => setOpen(false)}>
@@ -60,8 +62,8 @@ export default function Layout({ children, user, onLogout, theme, toggleTheme })
                 onClick={() => setOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 font-bold transition ${
                   active
-                    ? "bg-blue-600 text-white shadow-lg"
-                    : "hover:bg-white/70 dark:hover:bg-white/10"
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg"
+                    : "text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-white/10"
                 }`}
               >
                 <Icon size={19} />
@@ -76,7 +78,7 @@ export default function Layout({ children, user, onLogout, theme, toggleTheme })
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             {theme === "dark" ? "Light Mode" : "Dark Mode"}
           </button>
-          <button className="btn-soft w-full" onClick={logout}>
+          <button className="btn-soft w-full" onClick={() => setConfirmLogout(true)}>
             <LogOut size={18} />
             Logout
           </button>
@@ -101,6 +103,17 @@ export default function Layout({ children, user, onLogout, theme, toggleTheme })
 
         <div className="p-4 lg:p-8">{children}</div>
       </main>
+
+      <PremiumDialog
+        open={confirmLogout}
+        type="warning"
+        title="Confirm logout"
+        message="Are you sure you want to end your current session?"
+        confirmText="Logout"
+        cancelText="Stay"
+        onConfirm={logout}
+        onClose={() => setConfirmLogout(false)}
+      />
     </div>
   );
 }
