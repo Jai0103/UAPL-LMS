@@ -77,3 +77,46 @@ export function getCourseNotes() {
 export function saveCourseNotes(notes) {
     localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify(notes));
 }
+
+const FLASHCARDS_KEY = "uapl_lms_flashcards_v1";
+
+export function getFlashcards() {
+    const saved = localStorage.getItem(FLASHCARDS_KEY);
+
+    if (saved) {
+        return JSON.parse(saved);
+    }
+
+    const questions = getQuestions();
+
+    return questions.map((item, index) => ({
+        id: item.id || `flash-${index + 1}`,
+        question: item.question,
+        answer: item.options?.[item.answer] || "",
+        explanation: item.explanation || ""
+    }));
+}
+
+export function saveFlashcards(flashcards) {
+    localStorage.setItem(FLASHCARDS_KEY, JSON.stringify(flashcards));
+}
+
+export function exportBackup() {
+    return {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        users: getUsers(),
+        questions: getQuestions(),
+        flashcards: getFlashcards(),
+        courseNotes: getCourseNotes(),
+        theme: getTheme()
+    };
+}
+
+export function restoreBackup(data) {
+    if (data.users) saveUsers(data.users);
+    if (data.questions) saveQuestions(data.questions);
+    if (data.flashcards) saveFlashcards(data.flashcards);
+    if (data.courseNotes) saveCourseNotes(data.courseNotes);
+    if (data.theme) saveTheme(data.theme);
+}
