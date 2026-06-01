@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CheckCircle, Shuffle, TimerReset, Target } from "lucide-react";
+import { CheckCircle, HelpCircle, Shuffle, Target, TimerReset } from "lucide-react";
 import { getQuestions } from "../lib/storage";
 import PremiumDialog from "../components/PremiumDialog";
 
@@ -70,7 +70,7 @@ export default function Quiz() {
         <h1 className="mt-3 text-5xl font-black text-blue-700 dark:text-blue-300">{score}/{questions.length}</h1>
         <p className="mt-2 text-xl font-bold">Accuracy: {percent}%</p>
         <p className="mt-3 text-slate-500 dark:text-slate-400">
-          {percent >= 80 ? "Excellent performance." : "Review weak areas and try again."}
+          {percent >= 80 ? "Excellent performance. You are exam-ready in this set." : "Review weak areas and retake the quiz."}
         </p>
         <button className="btn-primary mt-6" onClick={() => restart(false)}>Retake Quiz</button>
       </section>
@@ -80,14 +80,16 @@ export default function Quiz() {
   return (
     <div className="space-y-5">
       <section className="card">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-black text-slate-500 dark:text-slate-400">
               Question {index + 1} of {questions.length}
             </p>
-            <div className="mt-1 flex flex-wrap gap-3 font-black">
-              <span>Score: {score}</span>
-              <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-300">
+            <div className="mt-2 flex flex-wrap gap-3 font-black">
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
+                Score: {score}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-200">
                 <Target size={16} /> Accuracy: {accuracy}%
               </span>
             </div>
@@ -105,6 +107,11 @@ export default function Quiz() {
       </section>
 
       <section className="card">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500 dark:bg-white/10 dark:text-slate-300">
+          <HelpCircle size={15} />
+          Choose the best answer
+        </div>
+
         <h1 className="text-2xl font-black leading-snug">{question.question}</h1>
 
         <div className="mt-6 grid gap-3">
@@ -113,8 +120,8 @@ export default function Quiz() {
               key={optionIndex}
               className={`cursor-pointer rounded-2xl border p-4 font-bold transition ${
                 selected === optionIndex
-                  ? "border-blue-600 bg-blue-50 text-blue-800 dark:bg-blue-500/20 dark:text-blue-100"
-                  : "border-slate-200 bg-white/70 hover:border-blue-300 dark:border-white/10 dark:bg-white/5"
+                  ? "border-blue-600 bg-blue-50 text-blue-800 shadow-lg shadow-blue-500/10 dark:bg-blue-500/20 dark:text-blue-100"
+                  : "border-slate-200 bg-white/70 hover:border-blue-300 hover:bg-blue-50/50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
               }`}
             >
               <input className="hidden" type="radio" checked={selected === optionIndex} onChange={() => setSelected(optionIndex)} />
