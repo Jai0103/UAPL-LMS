@@ -4,6 +4,7 @@ import { DEFAULT_USERS } from "../data/seedUsers";
 const USERS_KEY = "uapl_lms_users_v1";
 const SESSION_KEY = "uapl_lms_session_v1";
 const QUESTIONS_KEY = "uapl_lms_questions_v1";
+const FLASHCARDS_KEY = "uapl_lms_flashcards_v1";
 const THEME_KEY = "uapl_lms_theme_v1";
 const COURSE_NOTES_KEY = "uapl_lms_course_notes_v1";
 
@@ -16,18 +17,40 @@ export function initStorage() {
         localStorage.setItem(QUESTIONS_KEY, JSON.stringify(DEFAULT_QUESTIONS));
     }
 
-    if (!localStorage.getItem(THEME_KEY)) {
-        localStorage.setItem(THEME_KEY, "light");
+    if (!localStorage.getItem(FLASHCARDS_KEY)) {
+        localStorage.setItem(
+            FLASHCARDS_KEY,
+            JSON.stringify(
+                DEFAULT_QUESTIONS.map((item, index) => ({
+                    id: item.id || `flash-${index + 1}`,
+                    question: item.question,
+                    answer: item.options?.[item.answer] || "",
+                    explanation: item.explanation || ""
+                }))
+            )
+        );
     }
 
     if (!localStorage.getItem(COURSE_NOTES_KEY)) {
         localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify([]));
     }
+
+    if (!localStorage.getItem(THEME_KEY)) {
+        localStorage.setItem(THEME_KEY, "light");
+    }
+}
+
+export function resetLocalData() {
+    localStorage.removeItem(USERS_KEY);
+    localStorage.removeItem(QUESTIONS_KEY);
+    localStorage.removeItem(FLASHCARDS_KEY);
+    localStorage.removeItem(COURSE_NOTES_KEY);
+    initStorage();
 }
 
 export function getUsers() {
     initStorage();
-    return JSON.parse(localStorage.getItem(USERS_KEY));
+    return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
 }
 
 export function saveUsers(users) {
@@ -49,7 +72,7 @@ export function clearSession() {
 
 export function getQuestions() {
     initStorage();
-    return JSON.parse(localStorage.getItem(QUESTIONS_KEY));
+    return JSON.parse(localStorage.getItem(QUESTIONS_KEY)) || [];
 }
 
 export function saveQuestions(questions) {
@@ -59,6 +82,15 @@ export function saveQuestions(questions) {
 export function resetQuestions() {
     localStorage.setItem(QUESTIONS_KEY, JSON.stringify(DEFAULT_QUESTIONS));
     return DEFAULT_QUESTIONS;
+}
+
+export function getFlashcards() {
+    initStorage();
+    return JSON.parse(localStorage.getItem(FLASHCARDS_KEY)) || [];
+}
+
+export function saveFlashcards(flashcards) {
+    localStorage.setItem(FLASHCARDS_KEY, JSON.stringify(flashcards));
 }
 
 export function getTheme() {
@@ -71,34 +103,11 @@ export function saveTheme(theme) {
 
 export function getCourseNotes() {
     initStorage();
-    return JSON.parse(localStorage.getItem(COURSE_NOTES_KEY));
+    return JSON.parse(localStorage.getItem(COURSE_NOTES_KEY)) || [];
 }
 
 export function saveCourseNotes(notes) {
     localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify(notes));
-}
-
-const FLASHCARDS_KEY = "uapl_lms_flashcards_v1";
-
-export function getFlashcards() {
-    const saved = localStorage.getItem(FLASHCARDS_KEY);
-
-    if (saved) {
-        return JSON.parse(saved);
-    }
-
-    const questions = getQuestions();
-
-    return questions.map((item, index) => ({
-        id: item.id || `flash-${index + 1}`,
-        question: item.question,
-        answer: item.options?.[item.answer] || "",
-        explanation: item.explanation || ""
-    }));
-}
-
-export function saveFlashcards(flashcards) {
-    localStorage.setItem(FLASHCARDS_KEY, JSON.stringify(flashcards));
 }
 
 export function exportBackup() {
