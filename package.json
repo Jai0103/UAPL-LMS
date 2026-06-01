@@ -17,8 +17,7 @@
     "lucide-react": "latest"
   },
   "devDependencies": {
-    "tailwindcss": "latest",
-    "@tailwindcss/postcss": "latest",
+    "tailwindcss": "3.4.17",
     "postcss": "latest",
     "autoprefixer": "latest"
   }
