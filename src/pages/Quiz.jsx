@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     AlertCircle,
     CheckCircle2,
@@ -6,9 +6,48 @@ import {
     ClipboardCheck,
     RotateCcw,
     Target,
+    X,
     XCircle
 } from "lucide-react";
 import { getQuestions } from "../lib/storage";
+
+function PremiumPopup({ title, message, onClose }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl border border-white/50 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex gap-3">
+                        <div className="rounded-2xl bg-amber-100 p-3 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                            <AlertCircle size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                                {title}
+                            </h2>
+                            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                                {message}
+                            </p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onClose}
+                        className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <button
+                    onClick={onClose}
+                    className="mt-6 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                >
+                    Select Answer
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export default function Quiz() {
     const [questions] = useState(getQuestions());
@@ -16,9 +55,12 @@ export default function Quiz() {
     const [answers, setAnswers] = useState(Array(getQuestions().length).fill(null));
     const [selected, setSelected] = useState(null);
     const [submitted, setSubmitted] = useState(false);
+    const [finished, setFinished] = useState(false);
     const [showReview, setShowReview] = useState(false);
     const [reviewMistakesOnly, setReviewMistakesOnly] = useState(false);
-    const [warning, setWarning] = useState("");
+    const [popup, setPopup] = useState(null);
+
+    const autoNextTimer = useRef(null);
 
     const current = questions[currentIndex];
     const total = questions.length;
@@ -30,68 +72,72 @@ export default function Quiz() {
     }, [answers, questions]);
 
     const answeredCount = answers.filter((answer) => answer !== null).length;
-    const accuracy = answeredCount ? Math.round((score / answeredCount) * 100) : 0;
-    const completed = answeredCount === total;
+    const liveAccuracy = answeredCount ? Math.round((score / answeredCount) * 100) : 0;
+    const progress = total ? Math.round((answeredCount / total) * 100) : 0;
+
+    useEffect(() => {
+        return () => clearTimeout(autoNextTimer.current);
+    }, []);
+
+    function clearAutoNext() {
+        clearTimeout(autoNextTimer.current);
+        autoNextTimer.current = null;
+    }
 
     function submitAnswer() {
         if (selected === null) {
-            setWarning("Please select an answer before submitting.");
+            setPopup({
+                title: "No Answer Selected",
+                message: "Please choose one option before submitting your answer."
+            });
             return;
         }
-
-        setWarning("");
 
         const nextAnswers = [...answers];
         nextAnswers[currentIndex] = selected;
         setAnswers(nextAnswers);
         setSubmitted(true);
+
+        clearAutoNext();
+
+        autoNextTimer.current = setTimeout(() => {
+            moveNextOrFinish();
+        }, 5000);
     }
 
-    function nextQuestion() {
+    function moveNextOrFinish() {
+        clearAutoNext();
+
         if (currentIndex < total - 1) {
             const nextIndex = currentIndex + 1;
             setCurrentIndex(nextIndex);
             setSelected(answers[nextIndex]);
             setSubmitted(answers[nextIndex] !== null);
+        } else {
+            setFinished(true);
+            setSubmitted(false);
         }
     }
 
     function goToQuestion(index) {
+        clearAutoNext();
         setCurrentIndex(index);
         setSelected(answers[index]);
         setSubmitted(answers[index] !== null);
         setShowReview(false);
-        setWarning("");
+        setFinished(false);
     }
 
     function restartQuiz() {
+        clearAutoNext();
         setCurrentIndex(0);
         setAnswers(Array(total).fill(null));
         setSelected(null);
         setSubmitted(false);
+        setFinished(false);
         setShowReview(false);
         setReviewMistakesOnly(false);
-        setWarning("");
     }
-
-    const selectedIsCorrect = selected === current?.answer;
-    const progress = total ? Math.round((answeredCount / total) * 100) : 0;
-
-    const reviewItems = questions
-        .map((question, index) => {
-            const userAnswer = answers[index];
-            const isCorrect = userAnswer === question.answer;
-
-            if (reviewMistakesOnly && isCorrect) return null;
-
-            return {
-                question,
-                index,
-                userAnswer,
-                isCorrect
-            };
-        })
-        .filter(Boolean);
 
     if (!questions.length) {
         return (
@@ -101,11 +147,24 @@ export default function Quiz() {
                     No Questions Found
                 </h1>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    Add questions in Quiz Manager or upload a CSV from Import & Backup.
+                    Add questions in Quiz Manager or reset your local data.
                 </p>
             </div>
         );
     }
+
+    const selectedIsCorrect = selected === current?.answer;
+
+    const reviewItems = questions
+        .map((question, index) => {
+            const userAnswer = answers[index];
+            const isCorrect = userAnswer === question.answer;
+
+            if (reviewMistakesOnly && isCorrect) return null;
+
+            return { question, index, userAnswer, isCorrect };
+        })
+        .filter(Boolean);
 
     if (showReview) {
         return (
@@ -180,80 +239,68 @@ export default function Quiz() {
         );
     }
 
-    if (completed) {
+    if (finished) {
         const finalAccuracy = Math.round((score / total) * 100);
 
         return (
-            <div className="space-y-6">
-                <div className="rounded-3xl border border-white/60 bg-white/85 p-8 text-center shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
-                    <ClipboardCheck className="mx-auto text-blue-600 dark:text-sky-300" size={52} />
+            <div className="rounded-3xl border border-white/60 bg-white/85 p-8 text-center shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                <ClipboardCheck className="mx-auto text-blue-600 dark:text-sky-300" size={52} />
 
-                    <h1 className="mt-4 text-3xl font-black text-slate-950 dark:text-white">
-                        Quiz Completed
-                    </h1>
+                <h1 className="mt-4 text-3xl font-black text-slate-950 dark:text-white">
+                    Quiz Completed
+                </h1>
 
-                    <p className="mt-2 text-slate-600 dark:text-slate-300">
-                        Your score and review options are ready.
-                    </p>
-
-                    <div className="mt-8 grid gap-4 md:grid-cols-3">
-                        <div className="rounded-3xl bg-blue-50 p-5 dark:bg-sky-500/10">
-                            <p className="text-sm font-bold text-blue-700 dark:text-sky-200">
-                                Score
-                            </p>
-                            <p className="mt-1 text-3xl font-black text-blue-900 dark:text-white">
-                                {score}/{total}
-                            </p>
-                        </div>
-
-                        <div className="rounded-3xl bg-emerald-50 p-5 dark:bg-emerald-500/10">
-                            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-200">
-                                Accuracy
-                            </p>
-                            <p className="mt-1 text-3xl font-black text-emerald-900 dark:text-white">
-                                {finalAccuracy}%
-                            </p>
-                        </div>
-
-                        <div className="rounded-3xl bg-amber-50 p-5 dark:bg-amber-500/10">
-                            <p className="text-sm font-bold text-amber-700 dark:text-amber-200">
-                                Mistakes
-                            </p>
-                            <p className="mt-1 text-3xl font-black text-amber-900 dark:text-white">
-                                {total - score}
-                            </p>
-                        </div>
+                <div className="mt-8 grid gap-4 md:grid-cols-3">
+                    <div className="rounded-3xl bg-blue-50 p-5 dark:bg-sky-500/10">
+                        <p className="text-sm font-bold text-blue-700 dark:text-sky-200">Score</p>
+                        <p className="mt-1 text-3xl font-black text-blue-900 dark:text-white">
+                            {score}/{total}
+                        </p>
                     </div>
 
-                    <div className="mt-8 grid gap-3 md:grid-cols-3">
-                        <button
-                            onClick={() => {
-                                setReviewMistakesOnly(true);
-                                setShowReview(true);
-                            }}
-                            className="rounded-2xl bg-red-600 px-5 py-3 font-bold text-white"
-                        >
-                            Review Mistakes
-                        </button>
-
-                        <button
-                            onClick={() => {
-                                setReviewMistakesOnly(false);
-                                setShowReview(true);
-                            }}
-                            className="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white"
-                        >
-                            Review All
-                        </button>
-
-                        <button
-                            onClick={restartQuiz}
-                            className="flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white dark:bg-white dark:text-slate-950"
-                        >
-                            <RotateCcw size={18} />
-                            Retake Quiz
-                        </button>
+                    <div className="rounded-3xl bg-emerald-50 p-5 dark:bg-emerald-500/10">
+                        <p className="text-sm font-bold text-emerald-700 dark:text-emerald-200">Accuracy</p>
+                        <p className="mt-1 text-3xl font-black text-emerald-900 dark:text-white">
+                            {finalAccuracy}%
+                        </p>
                     </div>
+
+                    <div className="rounded-3xl bg-amber-50 p-5 dark:bg-amber-500/10">
+                        <p className="text-sm font-bold text-amber-700 dark:text-amber-200">Mistakes</p>
+                        <p className="mt-1 text-3xl font-black text-amber-900 dark:text-white">
+                            {total - score}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-8 grid gap-3 md:grid-cols-3">
+                    <button
+                        onClick={() => {
+                            setReviewMistakesOnly(true);
+                            setShowReview(true);
+                        }}
+                        className="rounded-2xl bg-red-600 px-5 py-3 font-bold text-white"
+                    >
+                        Review Mistakes
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            setReviewMistakesOnly(false);
+                            setShowReview(true);
+                        }}
+                        className="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white"
+                    >
+                        Review All
+                    </button>
+
+                    <button
+                        onClick={restartQuiz}
+                        className="flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white dark:bg-white dark:text-slate-950"
+                    >
+                        <RotateCcw size={18} />
+                        Retake Quiz
+                    </button>
                 </div>
             </div>
         );
@@ -261,6 +308,14 @@ export default function Quiz() {
 
     return (
         <div className="space-y-6">
+            {popup && (
+                <PremiumPopup
+                    title={popup.title}
+                    message={popup.message}
+                    onClose={() => setPopup(null)}
+                />
+            )}
+
             <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -277,13 +332,17 @@ export default function Quiz() {
                             <p className="text-xs font-bold text-blue-700 dark:text-sky-200">Score</p>
                             <p className="font-black text-slate-950 dark:text-white">{score}</p>
                         </div>
+
                         <div className="rounded-2xl bg-emerald-50 px-4 py-3 dark:bg-emerald-500/10">
                             <p className="text-xs font-bold text-emerald-700 dark:text-emerald-200">Accuracy</p>
-                            <p className="font-black text-slate-950 dark:text-white">{accuracy}%</p>
+                            <p className="font-black text-slate-950 dark:text-white">{liveAccuracy}%</p>
                         </div>
+
                         <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
                             <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Done</p>
-                            <p className="font-black text-slate-950 dark:text-white">{answeredCount}/{total}</p>
+                            <p className="font-black text-slate-950 dark:text-white">
+                                {answeredCount}/{total}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -301,13 +360,6 @@ export default function Quiz() {
                     <h2 className="text-xl font-black leading-8 text-slate-950 dark:text-white">
                         {current.question}
                     </h2>
-
-                    {warning && (
-                        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
-                            <AlertCircle size={18} />
-                            {warning}
-                        </div>
-                    )}
 
                     <div className="mt-6 space-y-3">
                         {current.options.map((option, index) => {
@@ -332,10 +384,7 @@ export default function Quiz() {
                                 <button
                                     key={index}
                                     disabled={submitted}
-                                    onClick={() => {
-                                        setSelected(index);
-                                        setWarning("");
-                                    }}
+                                    onClick={() => setSelected(index)}
                                     className={`flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition ${style}`}
                                 >
                                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -377,24 +426,28 @@ export default function Quiz() {
                             <p className="mt-3 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-600 dark:bg-slate-950/40 dark:text-slate-300">
                                 {current.explanation}
                             </p>
+
+                            <p className="mt-3 text-xs font-bold text-slate-500 dark:text-slate-400">
+                                Auto moving to next question in 5 seconds.
+                            </p>
                         </div>
                     )}
 
-                    <div className="mt-6 flex flex-col gap-3 md:flex-row">
+                    <div className="mt-6">
                         {!submitted ? (
                             <button
                                 onClick={submitAnswer}
-                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
                             >
                                 <Target size={18} />
                                 Submit Answer
                             </button>
                         ) : (
                             <button
-                                onClick={nextQuestion}
-                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                                onClick={moveNextOrFinish}
+                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
                             >
-                                Next Question
+                                {currentIndex === total - 1 ? "Finish Quiz" : "Next Question"}
                                 <ChevronRight size={18} />
                             </button>
                         )}
