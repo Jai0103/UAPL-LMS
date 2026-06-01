@@ -9,7 +9,7 @@ import Quiz from "./pages/Quiz";
 import Flashcards from "./pages/Flashcards";
 import CourseNotes from "./pages/CourseNotes";
 import QuizManager from "./pages/QuizManager";
-import UserManagement from "./pages/UserManagement";
+import UserManagement from "./pages/Users";
 import ImportBackup from "./pages/ImportBackup";
 import Settings from "./pages/Settings";
 
