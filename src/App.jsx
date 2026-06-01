@@ -1,29 +1,21 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { getSession, getTheme, initStorage, saveTheme } from "./lib/storage";
+
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Quiz from "./pages/Quiz";
 import Flashcards from "./pages/Flashcards";
+import CourseNotes from "./pages/CourseNotes";
 import QuizManager from "./pages/QuizManager";
 import UserManagement from "./pages/UserManagement";
-import Settings from "./pages/Settings";
-import CourseNotes from "./pages/CourseNotes";
 import ImportBackup from "./pages/ImportBackup";
+import Settings from "./pages/Settings";
 
 function ProtectedRoute({ session, children }) {
     if (!session) return <Navigate to="/login" replace />;
     return children;
-
-    <Route
-    path="/import-backup"
-    element={
-        <AdminRoute session={session}>
-            <ImportBackup />
-        </AdminRoute>
-    }
-/>
 }
 
 function AdminRoute({ session, children }) {
@@ -58,6 +50,7 @@ export default function App() {
 
     function toggleTheme() {
         const nextTheme = theme === "dark" ? "light" : "dark";
+
         setTheme(nextTheme);
         saveTheme(nextTheme);
         document.documentElement.classList.toggle("dark", nextTheme === "dark");
@@ -103,4 +96,37 @@ export default function App() {
                 <Route path="/quiz" element={<Quiz session={session} />} />
                 <Route path="/flashcards" element={<Flashcards session={session} />} />
                 <Route path="/course-notes" element={<CourseNotes session={session} />} />
-                <Route path="/settings" element={<Settings session={session
+                <Route path="/settings" element={<Settings session={session} />} />
+
+                <Route
+                    path="/quiz-manager"
+                    element={
+                        <AdminRoute session={session}>
+                            <QuizManager session={session} />
+                        </AdminRoute>
+                    }
+                />
+
+                <Route
+                    path="/users"
+                    element={
+                        <AdminRoute session={session}>
+                            <UserManagement session={session} />
+                        </AdminRoute>
+                    }
+                />
+
+                <Route
+                    path="/import-backup"
+                    element={
+                        <AdminRoute session={session}>
+                            <ImportBackup />
+                        </AdminRoute>
+                    }
+                />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+    );
+}
