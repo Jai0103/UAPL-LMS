@@ -1,98 +1,177 @@
-import { Plus, Save, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Edit3, Plus, Save, Search, Trash2, Users as UsersIcon } from "lucide-react";
 import { getUsers, saveUsers } from "../lib/storage";
-import PremiumDialog from "../components/PremiumDialog";
-import Toast from "../components/Toast";
 
-export default function Users({ user }) {
-  const [users, setUsers] = useState(getUsers());
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const [toast, setToast] = useState(null);
+export default function Users() {
+    const [users, setUsers] = useState(getUsers());
+    const [search, setSearch] = useState("");
+    const [editingId, setEditingId] = useState(null);
+    const [form, setForm] = useState({
+        name: "",
+        username: "",
+        password: "",
+        role: "student",
+        status: "Active"
+    });
 
-  if (user.role !== "admin") return <Navigate to="/" replace />;
+    const filteredUsers = useMemo(() => {
+        const keyword = search.toLowerCase();
+        return users.filter((user) =>
+            `${user.name} ${user.username} ${user.role} ${user.status}`.toLowerCase().includes(keyword)
+        );
+    }, [users, search]);
 
-  function addUser() {
-    setUsers([
-      ...users,
-      {
-        id: crypto.randomUUID(),
-        name: "New User",
-        username: "newuser",
-        password: "password123",
-        role: "student"
-      }
-    ]);
-  }
+    function resetForm() {
+        setEditingId(null);
+        setForm({ name: "", username: "", password: "", role: "student", status: "Active" });
+    }
 
-  function updateUser(index, field, value) {
-    const next = [...users];
-    next[index] = { ...next[index], [field]: value };
-    setUsers(next);
-  }
+    function saveUser() {
+        if (!form.name || !form.username || !form.password) {
+            alert("Please complete name, username, and password.");
+            return;
+        }
 
-function deleteUser(index) {
-  setPendingDelete(index);
-}
+        const nextUsers = editingId
+            ? users.map((user) => user.id === editingId ? { ...user, ...form } : user)
+            : [
+                ...users,
+                {
+                    id: `user-${Date.now()}`,
+                    ...form,
+                    createdAt: new Date().toISOString().slice(0, 10)
+                }
+            ];
 
-function confirmDelete() {
-  setUsers(users.filter((_, itemIndex) => itemIndex !== pendingDelete));
-  setPendingDelete(null);
-  setToast({
-    type: "success",
-    title: "User removed",
-    message: "The local user account has been removed from this browser."
-  });
-}
+        setUsers(nextUsers);
+        saveUsers(nextUsers);
+        resetForm();
+    }
 
-function save() {
-  saveUsers(users);
-  setToast({
-    type: "success",
-    title: "Users saved",
-    message: "User changes have been saved locally."
-  });
-}
-  return (
-    <div className="space-y-5">
-      <section className="card flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase text-blue-600">Admin Only</p>
-          <h1 className="text-3xl font-black">User Management</h1>
-          <p className="text-slate-500 dark:text-slate-400">Local browser users only. Not secure for real authentication.</p>
+    function editUser(user) {
+        setEditingId(user.id);
+        setForm({
+            name: user.name || "",
+            username: user.username || "",
+            password: user.password || "",
+            role: user.role || "student",
+            status: user.status || "Active"
+        });
+    }
+
+    function deleteUser(id) {
+        if (!confirm("Delete this user?")) return;
+        const nextUsers = users.filter((user) => user.id !== id);
+        setUsers(nextUsers);
+        saveUsers(nextUsers);
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium dark:border-white/10 dark:bg-slate-900/75">
+                <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
+                    Admin
+                </p>
+                <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+                    User Management
+                </h1>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    Manage local users saved in this browser.
+                </p>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium dark:border-white/10 dark:bg-slate-900/75">
+                    <div className="mb-4 flex items-center gap-3">
+                        {editingId ? <Edit3 /> : <Plus />}
+                        <h2 className="text-lg font-black dark:text-white">
+                            {editingId ? "Edit User" : "Add User"}
+                        </h2>
+                    </div>
+
+                    <div className="space-y-3">
+                        {["name", "username", "password"].map((field) => (
+                            <input
+                                key={field}
+                                value={form[field]}
+                                onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                                placeholder={field === "name" ? "Full name" : field}
+                                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                            />
+                        ))}
+
+                        <select
+                            value={form.role}
+                            onChange={(e) => setForm({ ...form, role: e.target.value })}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                        >
+                            <option value="student">Student</option>
+                            <option value="admin">Admin</option>
+                        </select>
+
+                        <select
+                            value={form.status}
+                            onChange={(e) => setForm({ ...form, status: e.target.value })}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                        >
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+
+                        <button onClick={saveUser} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white">
+                            <Save size={18} />
+                            Save User
+                        </button>
+
+                        {editingId && (
+                            <button onClick={resetForm} className="w-full rounded-2xl border px-5 py-3 font-bold dark:text-white">
+                                Cancel
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium dark:border-white/10 dark:bg-slate-900/75">
+                    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                        <Search size={18} className="text-slate-400" />
+                        <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search users..."
+                            className="w-full bg-transparent text-sm outline-none dark:text-white"
+                        />
+                    </div>
+
+                    <div className="space-y-3">
+                        {filteredUsers.map((user) => (
+                            <div key={user.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950 md:flex-row md:items-center md:justify-between">
+                                <div className="flex items-center gap-3">
+                                    <UsersIcon className="text-blue-600" />
+                                    <div>
+                                        <p className="font-black dark:text-white">{user.name}</p>
+                                        <p className="text-sm text-slate-500">{user.username} • {user.role} • {user.status}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button onClick={() => editUser(user)} className="rounded-xl bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
+                                        Edit
+                                    </button>
+                                    <button onClick={() => deleteUser(user.id)} className="rounded-xl bg-red-50 px-4 py-2 text-red-700">
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+
+                        {!filteredUsers.length && (
+                            <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">
+                                No users found. If this should not be empty, clear localStorage once and refresh.
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
-        <div className="flex gap-2">
-          <button className="btn-soft" onClick={addUser}><Plus size={18} /> Add</button>
-          <button className="btn-primary" onClick={save}><Save size={18} /> Save</button>
-        </div>
-      </section>
-
-      <section className="grid gap-4">
-        {users.map((item, index) => (
-          <div key={item.id} className="card grid gap-3 md:grid-cols-5">
-            <input className="input" value={item.name} onChange={(e) => updateUser(index, "name", e.target.value)} />
-            <input className="input" value={item.username} onChange={(e) => updateUser(index, "username", e.target.value)} />
-            <input className="input" value={item.password} onChange={(e) => updateUser(index, "password", e.target.value)} />
-            <select className="input" value={item.role} onChange={(e) => updateUser(index, "role", e.target.value)}>
-              <option value="student">student</option>
-              <option value="admin">admin</option>
-            </select>
-            <button className="btn-soft" onClick={() => deleteUser(index)}><Trash2 size={18} /> Delete</button>
-          </div>
-        ))}
-      </section>
-
-      <PremiumDialog
-  open={pendingDelete !== null}
-  type="warning"
-  title="Delete this user?"
-  message="This will remove the user from localStorage on this browser."
-  confirmText="Delete User"
-  onConfirm={confirmDelete}
-  onClose={() => setPendingDelete(null)}
-/>
-
-<Toast toast={toast} onClose={() => setToast(null)} />
-    </div>
-  );
+    );
 }
