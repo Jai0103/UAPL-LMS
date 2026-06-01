@@ -1,150 +1,442 @@
 import { useMemo, useState } from "react";
-import { CheckCircle, HelpCircle, Shuffle, Target, TimerReset } from "lucide-react";
+import {
+    AlertCircle,
+    CheckCircle2,
+    ChevronRight,
+    ClipboardCheck,
+    RotateCcw,
+    Target,
+    XCircle
+} from "lucide-react";
 import { getQuestions } from "../lib/storage";
-import PremiumDialog from "../components/PremiumDialog";
-
-function shuffleItems(items) {
-  return [...items].sort(() => Math.random() - 0.5);
-}
 
 export default function Quiz() {
-  const [questions, setQuestions] = useState(getQuestions());
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState(Array(questions.length).fill(null));
-  const [selected, setSelected] = useState(null);
-  const [finished, setFinished] = useState(false);
-  const [dialog, setDialog] = useState(null);
+    const [questions] = useState(getQuestions());
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [answers, setAnswers] = useState(Array(getQuestions().length).fill(null));
+    const [selected, setSelected] = useState(null);
+    const [submitted, setSubmitted] = useState(false);
+    const [showReview, setShowReview] = useState(false);
+    const [reviewMistakesOnly, setReviewMistakesOnly] = useState(false);
+    const [warning, setWarning] = useState("");
 
-  const question = questions[index];
+    const current = questions[currentIndex];
+    const total = questions.length;
 
-  const score = useMemo(
-    () => answers.reduce((total, answer, i) => total + (answer === questions[i]?.answer ? 1 : 0), 0),
-    [answers, questions]
-  );
+    const score = useMemo(() => {
+        return answers.reduce((count, answer, index) => {
+            return answer === questions[index]?.answer ? count + 1 : count;
+        }, 0);
+    }, [answers, questions]);
 
-  const answeredCount = answers.filter((item) => item !== null).length;
-  const progress = (answeredCount / questions.length) * 100;
-  const accuracy = answeredCount ? Math.round((score / answeredCount) * 100) : 0;
+    const answeredCount = answers.filter((answer) => answer !== null).length;
+    const accuracy = answeredCount ? Math.round((score / answeredCount) * 100) : 0;
+    const completed = answeredCount === total;
 
-  function submit() {
-    if (answers[index] !== null) return;
+    function submitAnswer() {
+        if (selected === null) {
+            setWarning("Please select an answer before submitting.");
+            return;
+        }
 
-    if (selected === null) {
-      setDialog({
-        type: "warning",
-        title: "Select an answer",
-        message: "Please choose one option before submitting this question."
-      });
-      return;
+        setWarning("");
+
+        const nextAnswers = [...answers];
+        nextAnswers[currentIndex] = selected;
+        setAnswers(nextAnswers);
+        setSubmitted(true);
     }
 
-    const next = [...answers];
-    next[index] = selected;
-    setAnswers(next);
+    function nextQuestion() {
+        if (currentIndex < total - 1) {
+            const nextIndex = currentIndex + 1;
+            setCurrentIndex(nextIndex);
+            setSelected(answers[nextIndex]);
+            setSubmitted(answers[nextIndex] !== null);
+        }
+    }
 
-    setTimeout(() => {
-      if (index < questions.length - 1) {
-        setIndex(index + 1);
+    function goToQuestion(index) {
+        setCurrentIndex(index);
+        setSelected(answers[index]);
+        setSubmitted(answers[index] !== null);
+        setShowReview(false);
+        setWarning("");
+    }
+
+    function restartQuiz() {
+        setCurrentIndex(0);
+        setAnswers(Array(total).fill(null));
         setSelected(null);
-      } else {
-        setFinished(true);
-      }
-    }, 250);
-  }
+        setSubmitted(false);
+        setShowReview(false);
+        setReviewMistakesOnly(false);
+        setWarning("");
+    }
 
-  function restart(shuffle = false) {
-    const nextQuestions = shuffle ? shuffleItems(getQuestions()) : getQuestions();
-    setQuestions(nextQuestions);
-    setAnswers(Array(nextQuestions.length).fill(null));
-    setIndex(0);
-    setSelected(null);
-    setFinished(false);
-  }
+    const selectedIsCorrect = selected === current?.answer;
+    const progress = total ? Math.round((answeredCount / total) * 100) : 0;
 
-  if (finished) {
-    const percent = Math.round((score / questions.length) * 100);
+    const reviewItems = questions
+        .map((question, index) => {
+            const userAnswer = answers[index];
+            const isCorrect = userAnswer === question.answer;
+
+            if (reviewMistakesOnly && isCorrect) return null;
+
+            return {
+                question,
+                index,
+                userAnswer,
+                isCorrect
+            };
+        })
+        .filter(Boolean);
+
+    if (!questions.length) {
+        return (
+            <div className="rounded-3xl border border-white/60 bg-white/85 p-8 text-center shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                <AlertCircle className="mx-auto text-amber-500" size={42} />
+                <h1 className="mt-4 text-2xl font-black text-slate-950 dark:text-white">
+                    No Questions Found
+                </h1>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                    Add questions in Quiz Manager or upload a CSV from Import & Backup.
+                </p>
+            </div>
+        );
+    }
+
+    if (showReview) {
+        return (
+            <div className="space-y-6">
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
+                                Review
+                            </p>
+                            <h1 className="text-2xl font-black text-slate-950 dark:text-white">
+                                {reviewMistakesOnly ? "Review Mistakes" : "Review All Questions"}
+                            </h1>
+                        </div>
+
+                        <button
+                            onClick={() => setShowReview(false)}
+                            className="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white"
+                        >
+                            Back to Result
+                        </button>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    {reviewItems.map(({ question, index, userAnswer, isCorrect }) => (
+                        <div
+                            key={index}
+                            className={`rounded-3xl border p-5 shadow-premium backdrop-blur-xl ${
+                                isCorrect
+                                    ? "border-emerald-200 bg-emerald-50/90 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+                                    : "border-red-200 bg-red-50/90 dark:border-red-500/20 dark:bg-red-500/10"
+                            }`}
+                        >
+                            <div className="flex items-start gap-3">
+                                {isCorrect ? (
+                                    <CheckCircle2 className="mt-1 text-emerald-600" size={22} />
+                                ) : (
+                                    <XCircle className="mt-1 text-red-600" size={22} />
+                                )}
+
+                                <div>
+                                    <h2 className="font-black text-slate-950 dark:text-white">
+                                        Q{index + 1}: {question.question}
+                                    </h2>
+
+                                    <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
+                                        <strong>Your answer:</strong>{" "}
+                                        {userAnswer === null ? "Not answered" : question.options[userAnswer]}
+                                    </p>
+
+                                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                                        <strong>Correct answer:</strong>{" "}
+                                        {question.options[question.answer]}
+                                    </p>
+
+                                    <p className="mt-3 rounded-2xl bg-white/70 p-4 text-sm text-slate-600 dark:bg-slate-950/40 dark:text-slate-300">
+                                        {question.explanation}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    {!reviewItems.length && (
+                        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-8 text-center text-emerald-700">
+                            No mistakes to review. Excellent work.
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (completed) {
+        const finalAccuracy = Math.round((score / total) * 100);
+
+        return (
+            <div className="space-y-6">
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-8 text-center shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                    <ClipboardCheck className="mx-auto text-blue-600 dark:text-sky-300" size={52} />
+
+                    <h1 className="mt-4 text-3xl font-black text-slate-950 dark:text-white">
+                        Quiz Completed
+                    </h1>
+
+                    <p className="mt-2 text-slate-600 dark:text-slate-300">
+                        Your score and review options are ready.
+                    </p>
+
+                    <div className="mt-8 grid gap-4 md:grid-cols-3">
+                        <div className="rounded-3xl bg-blue-50 p-5 dark:bg-sky-500/10">
+                            <p className="text-sm font-bold text-blue-700 dark:text-sky-200">
+                                Score
+                            </p>
+                            <p className="mt-1 text-3xl font-black text-blue-900 dark:text-white">
+                                {score}/{total}
+                            </p>
+                        </div>
+
+                        <div className="rounded-3xl bg-emerald-50 p-5 dark:bg-emerald-500/10">
+                            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-200">
+                                Accuracy
+                            </p>
+                            <p className="mt-1 text-3xl font-black text-emerald-900 dark:text-white">
+                                {finalAccuracy}%
+                            </p>
+                        </div>
+
+                        <div className="rounded-3xl bg-amber-50 p-5 dark:bg-amber-500/10">
+                            <p className="text-sm font-bold text-amber-700 dark:text-amber-200">
+                                Mistakes
+                            </p>
+                            <p className="mt-1 text-3xl font-black text-amber-900 dark:text-white">
+                                {total - score}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 grid gap-3 md:grid-cols-3">
+                        <button
+                            onClick={() => {
+                                setReviewMistakesOnly(true);
+                                setShowReview(true);
+                            }}
+                            className="rounded-2xl bg-red-600 px-5 py-3 font-bold text-white"
+                        >
+                            Review Mistakes
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setReviewMistakesOnly(false);
+                                setShowReview(true);
+                            }}
+                            className="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white"
+                        >
+                            Review All
+                        </button>
+
+                        <button
+                            onClick={restartQuiz}
+                            className="flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white dark:bg-white dark:text-slate-950"
+                        >
+                            <RotateCcw size={18} />
+                            Retake Quiz
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
-      <section className="card text-center">
-        <p className="text-xs font-black uppercase tracking-wide text-blue-600">Quiz Complete</p>
-        <h1 className="mt-3 text-5xl font-black text-blue-700 dark:text-blue-300">{score}/{questions.length}</h1>
-        <p className="mt-2 text-xl font-bold">Accuracy: {percent}%</p>
-        <p className="mt-3 text-slate-500 dark:text-slate-400">
-          {percent >= 80 ? "Excellent performance. You are exam-ready in this set." : "Review weak areas and retake the quiz."}
-        </p>
-        <button className="btn-primary mt-6" onClick={() => restart(false)}>Retake Quiz</button>
-      </section>
-    );
-  }
+        <div className="space-y-6">
+            <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
+                            Quiz Mode
+                        </p>
+                        <h1 className="text-2xl font-black text-slate-950 dark:text-white">
+                            Question {currentIndex + 1} of {total}
+                        </h1>
+                    </div>
 
-  return (
-    <div className="space-y-5">
-      <section className="card">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-black text-slate-500 dark:text-slate-400">
-              Question {index + 1} of {questions.length}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-3 font-black">
-              <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200">
-                Score: {score}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-200">
-                <Target size={16} /> Accuracy: {accuracy}%
-              </span>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="rounded-2xl bg-blue-50 px-4 py-3 dark:bg-sky-500/10">
+                            <p className="text-xs font-bold text-blue-700 dark:text-sky-200">Score</p>
+                            <p className="font-black text-slate-950 dark:text-white">{score}</p>
+                        </div>
+                        <div className="rounded-2xl bg-emerald-50 px-4 py-3 dark:bg-emerald-500/10">
+                            <p className="text-xs font-bold text-emerald-700 dark:text-emerald-200">Accuracy</p>
+                            <p className="font-black text-slate-950 dark:text-white">{accuracy}%</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
+                            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Done</p>
+                            <p className="font-black text-slate-950 dark:text-white">{answeredCount}/{total}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                    <div
+                        className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all"
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
             </div>
-          </div>
 
-          <div className="flex gap-2">
-            <button className="btn-soft" onClick={() => restart(true)}><Shuffle size={18} /> Shuffle</button>
-            <button className="btn-soft" onClick={() => restart(false)}><TimerReset size={18} /> Reset</button>
-          </div>
+            <div className="grid gap-6 xl:grid-cols-[1fr_260px]">
+                <div className="rounded-3xl border border-white/60 bg-white/90 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/80">
+                    <h2 className="text-xl font-black leading-8 text-slate-950 dark:text-white">
+                        {current.question}
+                    </h2>
+
+                    {warning && (
+                        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+                            <AlertCircle size={18} />
+                            {warning}
+                        </div>
+                    )}
+
+                    <div className="mt-6 space-y-3">
+                        {current.options.map((option, index) => {
+                            const isCorrect = index === current.answer;
+                            const isSelected = selected === index;
+
+                            let style =
+                                "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-800";
+
+                            if (submitted && isCorrect) {
+                                style =
+                                    "border-emerald-400 bg-emerald-50 text-emerald-900 dark:border-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-100";
+                            } else if (submitted && isSelected && !isCorrect) {
+                                style =
+                                    "border-red-400 bg-red-50 text-red-900 dark:border-red-500 dark:bg-red-500/10 dark:text-red-100";
+                            } else if (isSelected) {
+                                style =
+                                    "border-blue-500 bg-blue-50 text-blue-900 dark:border-sky-400 dark:bg-sky-500/10 dark:text-sky-100";
+                            }
+
+                            return (
+                                <button
+                                    key={index}
+                                    disabled={submitted}
+                                    onClick={() => {
+                                        setSelected(index);
+                                        setWarning("");
+                                    }}
+                                    className={`flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition ${style}`}
+                                >
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                        {String.fromCharCode(65 + index)}
+                                    </span>
+                                    <span className="font-semibold">{option}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {submitted && (
+                        <div
+                            className={`mt-6 rounded-3xl border p-5 ${
+                                selectedIsCorrect
+                                    ? "border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+                                    : "border-red-200 bg-red-50 dark:border-red-500/20 dark:bg-red-500/10"
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                {selectedIsCorrect ? (
+                                    <CheckCircle2 className="text-emerald-600" size={22} />
+                                ) : (
+                                    <XCircle className="text-red-600" size={22} />
+                                )}
+
+                                <h3 className="font-black text-slate-950 dark:text-white">
+                                    {selectedIsCorrect ? "Correct Answer" : "Incorrect Answer"}
+                                </h3>
+                            </div>
+
+                            {!selectedIsCorrect && (
+                                <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
+                                    <strong>Correct answer:</strong>{" "}
+                                    {current.options[current.answer]}
+                                </p>
+                            )}
+
+                            <p className="mt-3 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-600 dark:bg-slate-950/40 dark:text-slate-300">
+                                {current.explanation}
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex flex-col gap-3 md:flex-row">
+                        {!submitted ? (
+                            <button
+                                onClick={submitAnswer}
+                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                            >
+                                <Target size={18} />
+                                Submit Answer
+                            </button>
+                        ) : (
+                            <button
+                                onClick={nextQuestion}
+                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                            >
+                                Next Question
+                                <ChevronRight size={18} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                    <h3 className="font-black text-slate-950 dark:text-white">
+                        Question Navigator
+                    </h3>
+
+                    <div className="mt-4 grid grid-cols-5 gap-2">
+                        {questions.map((_, index) => {
+                            const answer = answers[index];
+                            const isActive = index === currentIndex;
+                            const isCorrect = answer === questions[index].answer;
+
+                            let style = "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+
+                            if (answer !== null && isCorrect) {
+                                style = "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200";
+                            } else if (answer !== null && !isCorrect) {
+                                style = "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200";
+                            }
+
+                            if (isActive) {
+                                style = "bg-blue-600 text-white";
+                            }
+
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => goToQuestion(index)}
+                                    className={`rounded-xl px-2 py-2 text-xs font-black ${style}`}
+                                >
+                                    {index + 1}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-          <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-400" style={{ width: `${progress}%` }} />
-        </div>
-      </section>
-
-      <section className="card">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500 dark:bg-white/10 dark:text-slate-300">
-          <HelpCircle size={15} />
-          Choose the best answer
-        </div>
-
-        <h1 className="text-2xl font-black leading-snug">{question.question}</h1>
-
-        <div className="mt-6 grid gap-3">
-          {question.options.map((option, optionIndex) => (
-            <label
-              key={optionIndex}
-              className={`cursor-pointer rounded-2xl border p-4 font-bold transition ${
-                selected === optionIndex
-                  ? "border-blue-600 bg-blue-50 text-blue-800 shadow-lg shadow-blue-500/10 dark:bg-blue-500/20 dark:text-blue-100"
-                  : "border-slate-200 bg-white/70 hover:border-blue-300 hover:bg-blue-50/50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
-              }`}
-            >
-              <input className="hidden" type="radio" checked={selected === optionIndex} onChange={() => setSelected(optionIndex)} />
-              {String.fromCharCode(65 + optionIndex)}. {option}
-            </label>
-          ))}
-        </div>
-
-        <button className="btn-primary mt-6" onClick={submit}>
-          <CheckCircle size={18} />
-          Submit Answer
-        </button>
-      </section>
-
-      <PremiumDialog
-        open={!!dialog}
-        type={dialog?.type}
-        title={dialog?.title}
-        message={dialog?.message}
-        confirmText="OK"
-        cancelText="Close"
-        onClose={() => setDialog(null)}
-      />
-    </div>
-  );
+    );
 }
