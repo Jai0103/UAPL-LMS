@@ -7,15 +7,27 @@ const QUESTIONS_KEY = "uapl_lms_questions_v1";
 const THEME_KEY = "uapl_lms_theme_v1";
 const COURSE_NOTES_KEY = "uapl_lms_course_notes_v1";
 
-export function getUsers() {
-    const saved = localStorage.getItem(USERS_KEY);
-
-    if (!saved) {
+export function initStorage() {
+    if (!localStorage.getItem(USERS_KEY)) {
         localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
-        return DEFAULT_USERS;
     }
 
-    return JSON.parse(saved);
+    if (!localStorage.getItem(QUESTIONS_KEY)) {
+        localStorage.setItem(QUESTIONS_KEY, JSON.stringify(DEFAULT_QUESTIONS));
+    }
+
+    if (!localStorage.getItem(THEME_KEY)) {
+        localStorage.setItem(THEME_KEY, "light");
+    }
+
+    if (!localStorage.getItem(COURSE_NOTES_KEY)) {
+        localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify([]));
+    }
+}
+
+export function getUsers() {
+    initStorage();
+    return JSON.parse(localStorage.getItem(USERS_KEY));
 }
 
 export function saveUsers(users) {
@@ -36,14 +48,8 @@ export function clearSession() {
 }
 
 export function getQuestions() {
-    const saved = localStorage.getItem(QUESTIONS_KEY);
-
-    if (!saved) {
-        localStorage.setItem(QUESTIONS_KEY, JSON.stringify(DEFAULT_QUESTIONS));
-        return DEFAULT_QUESTIONS;
-    }
-
-    return JSON.parse(saved);
+    initStorage();
+    return JSON.parse(localStorage.getItem(QUESTIONS_KEY));
 }
 
 export function saveQuestions(questions) {
@@ -64,15 +70,8 @@ export function saveTheme(theme) {
 }
 
 export function getCourseNotes() {
-    const saved = localStorage.getItem(COURSE_NOTES_KEY);
-
-    if (!saved) {
-        const defaultNotes = [];
-        localStorage.setItem(COURSE_NOTES_KEY, JSON.stringify(defaultNotes));
-        return defaultNotes;
-    }
-
-    return JSON.parse(saved);
+    initStorage();
+    return JSON.parse(localStorage.getItem(COURSE_NOTES_KEY));
 }
 
 export function saveCourseNotes(notes) {
