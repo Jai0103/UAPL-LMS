@@ -1,4 +1,4 @@
-const API_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+const API_URL = "https://script.google.com/macros/s/AKfycbyXp5-LLlcrTsA-KelLg37qHxGuQ9Q982ew9Tfe5nQ4CCWJISjL9CrWCaH0RBy3eEHT/exec";
 
 async function request(action, payload = {}) {
     const response = await fetch(`${API_URL}?action=${action}`, {
