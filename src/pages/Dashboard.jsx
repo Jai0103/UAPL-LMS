@@ -89,7 +89,7 @@ export default function Dashboard({ session }) {
                         </p>
 
                         <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            Built by: Jairus
+                            Developed by: Jairus
                         </p>
                     </div>
 
