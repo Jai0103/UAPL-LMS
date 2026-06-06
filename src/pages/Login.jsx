@@ -62,18 +62,19 @@ export default function Login({ onLogin }) {
         }
     }
 
-    function openDisclaimer() {
-        setDialog({
-            type: "info",
-            title: "Disclaimer",
-            message:
-                "This project is an independent educational resource and is not affiliated with, endorsed by, or connected to the Civil Aviation Authority of Singapore (CAAS).
-                All questions and materials are intended strictly for practice and learning purposes only. They are not official examination content and may not accurately reflect the structure, wording, or content of the actual CAAS theory examination.
-                Users should refer to official CAAS publications and guidelines for the most accurate, current, and authoritative information.",
-            confirmText: "I Understand",
-            onConfirm: () => setDialog(null)
-        });
-    }
+function openDisclaimer() {
+    setDialog({
+        type: "info",
+        title: "Disclaimer",
+        message: `This project is an independent educational resource and is not affiliated with, endorsed by, or connected to the Civil Aviation Authority of Singapore (CAAS).
+
+All quiz questions, explanations, flashcards, and course notes are provided for training, revision, and self-assessment purposes only. They should not be treated as official regulatory guidance, examination material, or legal advice.
+
+Users remain responsible for checking the latest official CAAS publications, rules, regulations, advisories, and requirements before conducting any unmanned aircraft operation.`,
+        confirmText: "I Understand",
+        onConfirm: () => setDialog(null)
+    });
+}
 
     return (
         <div className="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-white">
