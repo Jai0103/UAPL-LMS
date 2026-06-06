@@ -75,12 +75,11 @@ export default function Dashboard({ session }) {
                         </h1>
 
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                            Your UAPL training dashboard is ready. Continue your quiz,
-                            review flashcards, or manage training content.
+                            Continue your UAPL training journey by completing quizzes, reviewing flashcards, accessing course resources, and monitoring your progress.
                         </p>
 
                         <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            Built by: Jairus
+                            Developed by: Jairus
                         </p>
                     </div>
 
