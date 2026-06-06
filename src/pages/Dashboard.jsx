@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     BookOpen,
     ClipboardList,
@@ -6,16 +7,33 @@ import {
     Layers,
     Search,
     ShieldCheck,
+    TrendingUp,
+    Trophy,
     Users
 } from "lucide-react";
 import {
     getCourseNotes,
     getFlashcards,
     getQuestions,
+    getQuizResults,
     getUsers
 } from "../lib/storage";
 
+function formatDate(value) {
+    if (!value) return "Not available";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+
+    return date.toLocaleDateString("en-SG", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+    });
+}
+
 export default function Dashboard({ session }) {
+    const navigate = useNavigate();
     const [showUsers, setShowUsers] = useState(false);
     const [search, setSearch] = useState("");
 
@@ -23,8 +41,37 @@ export default function Dashboard({ session }) {
     const questions = getQuestions();
     const flashcards = getFlashcards();
     const notes = getCourseNotes();
+    const quizResults = getQuizResults();
 
     const isAdmin = session?.role === "admin";
+
+    const studentResults = useMemo(() => {
+        return quizResults.filter((result) => {
+            return (
+                String(result.userId || "") === String(session?.id || "") ||
+                String(result.username || "").toLowerCase() === String(session?.username || "").toLowerCase()
+            );
+        });
+    }, [quizResults, session]);
+
+    const latestResult = studentResults[studentResults.length - 1];
+
+    const bestAccuracy = studentResults.length
+        ? Math.max(...studentResults.map((result) => Number(result.accuracy || 0)))
+        : 0;
+
+    const averageAccuracy = studentResults.length
+        ? Math.round(
+              studentResults.reduce((total, result) => total + Number(result.accuracy || 0), 0) /
+                  studentResults.length
+          )
+        : 0;
+
+    const suggestedAction = !studentResults.length
+        ? "Start your first quiz"
+        : Number(latestResult?.accuracy || 0) >= 80
+            ? "Review flashcards to keep your knowledge fresh"
+            : "Retake quiz and review weak areas";
 
     const filteredUsers = useMemo(() => {
         const keyword = search.toLowerCase();
@@ -69,6 +116,37 @@ export default function Dashboard({ session }) {
 
     const cards = isAdmin ? adminCards : studentCards;
 
+    const quickActions = [
+        {
+            title: "Start Quiz",
+            description: "Begin your UAPL mock test practice.",
+            icon: ClipboardList,
+            path: "/quiz",
+            color: "bg-blue-600"
+        },
+        {
+            title: "Review Mistakes",
+            description: "Retake the quiz and focus on weak areas.",
+            icon: TrendingUp,
+            path: "/quiz",
+            color: "bg-red-600"
+        },
+        {
+            title: "Open Flashcards",
+            description: "Review key terms and concepts quickly.",
+            icon: Layers,
+            path: "/flashcards",
+            color: "bg-cyan-600"
+        },
+        {
+            title: "View Course Notes",
+            description: "Read training notes and references.",
+            icon: BookOpen,
+            path: "/course-notes",
+            color: "bg-emerald-600"
+        }
+    ];
+
     return (
         <div className="space-y-6">
             <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
@@ -85,11 +163,11 @@ export default function Dashboard({ session }) {
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
                             {isAdmin
                                 ? "Monitor the LMS content, users, notes, and training resources."
-                                : "Continue your UAPL quiz practice and flashcard review."}
+                                : suggestedAction}
                         </p>
 
                         <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            Developed by: Jairus
+                            Built by: Jairus
                         </p>
                     </div>
 
@@ -108,6 +186,97 @@ export default function Dashboard({ session }) {
                     </div>
                 </div>
             </section>
+
+            {!isAdmin && (
+                <>
+                    <section className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                        <div className="mb-5 flex items-center gap-3">
+                            <div className="rounded-2xl bg-blue-100 p-3 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300">
+                                <Trophy size={22} />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-slate-950 dark:text-white">
+                                    My Progress
+                                </h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    Your quiz performance and account access summary.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <ProgressCard
+                                label="Last Quiz Score"
+                                value={
+                                    latestResult
+                                        ? `${latestResult.score}/${latestResult.total}`
+                                        : "No attempt"
+                                }
+                            />
+
+                            <ProgressCard
+                                label="Best Accuracy"
+                                value={studentResults.length ? `${bestAccuracy}%` : "No attempt"}
+                            />
+
+                            <ProgressCard
+                                label="Average Accuracy"
+                                value={studentResults.length ? `${averageAccuracy}%` : "No attempt"}
+                            />
+
+                            <ProgressCard
+                                label="Total Attempts"
+                                value={studentResults.length}
+                            />
+
+                            <ProgressCard
+                                label="Last Login"
+                                value={formatDate(session?.lastLogin)}
+                            />
+
+                            <ProgressCard
+                                label="Access Expiry"
+                                value={session?.expiryDate ? formatDate(session.expiryDate) : "No expiry"}
+                            />
+
+                            <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 p-5 text-white sm:col-span-2">
+                                <p className="text-sm font-bold text-blue-100">
+                                    Suggested Next Action
+                                </p>
+                                <p className="mt-2 text-xl font-black">
+                                    {suggestedAction}
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        {quickActions.map((action) => {
+                            const Icon = action.icon;
+
+                            return (
+                                <button
+                                    key={action.title}
+                                    onClick={() => navigate(action.path)}
+                                    className="rounded-3xl border border-white/60 bg-white/85 p-5 text-left shadow-premium transition hover:-translate-y-1 hover:shadow-2xl dark:border-white/10 dark:bg-slate-900/75"
+                                >
+                                    <div className={`mb-4 inline-flex rounded-2xl ${action.color} p-3 text-white`}>
+                                        <Icon size={22} />
+                                    </div>
+
+                                    <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                                        {action.title}
+                                    </h3>
+
+                                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                                        {action.description}
+                                    </p>
+                                </button>
+                            );
+                        })}
+                    </section>
+                </>
+            )}
 
             <section className={`grid gap-5 ${isAdmin ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-2"}`}>
                 {cards.map((card) => {
@@ -237,6 +406,19 @@ export default function Dashboard({ session }) {
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+function ProgressCard({ label, value }) {
+    return (
+        <div className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950/60">
+            <p className="text-sm font-bold text-slate-500 dark:text-slate-400">
+                {label}
+            </p>
+            <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+                {value}
+            </p>
         </div>
     );
 }
