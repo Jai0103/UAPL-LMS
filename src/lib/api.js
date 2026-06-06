@@ -1,9 +1,14 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyXp5-LLlcrTsA-KelLg37qHxGuQ9Q982ew9Tfe5nQ4CCWJISjL9CrWCaH0RBy3eEHT/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbww2M-BdQX3GjqbaMeLCbs8sCBXHfgOauYl2sYOiWMUEIGSAbED6EFa_LrFgI0CVNZ2/exec";
 
 async function request(action, payload = {}) {
-    const response = await fetch(`${API_URL}?action=${action}`, {
+    const body = new URLSearchParams();
+
+    body.append("action", action);
+    body.append("payload", JSON.stringify(payload));
+
+    const response = await fetch(API_URL, {
         method: "POST",
-        body: JSON.stringify(payload)
+        body
     });
 
     return response.json();
@@ -18,16 +23,8 @@ export const api = {
         return request("getBootstrap");
     },
 
-    createUser(user) {
-        return request("createUser", user);
-    },
-
-    updateUser(user) {
-        return request("updateUser", user);
-    },
-
-    deleteUser(id) {
-        return request("deleteUser", { id });
+    saveUsers(users) {
+        return request("saveUsers", { users });
     },
 
     saveQuestions(questions) {
