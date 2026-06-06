@@ -11,14 +11,14 @@ import {
 import { getUsers, saveUsers } from "../lib/storage";
 import PremiumDialog from "../components/PremiumDialog";
 
+function todayDate() {
+    return new Date().toISOString().slice(0, 10);
+}
+
 function defaultExpiryDate() {
     const date = new Date();
     date.setMonth(date.getMonth() + 1);
     return date.toISOString().slice(0, 10);
-}
-
-function todayDate() {
-    return new Date().toISOString().slice(0, 10);
 }
 
 const emptyUser = {
@@ -33,18 +33,24 @@ const emptyUser = {
 export default function Users() {
     const [users, setUsers] = useState(getUsers());
     const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All");
     const [dialog, setDialog] = useState(null);
     const [newUser, setNewUser] = useState(emptyUser);
 
     const filteredUsers = useMemo(() => {
         const keyword = search.toLowerCase();
 
-        return users.filter((user) =>
-            `${user.name} ${user.username} ${user.role} ${user.status} ${user.expiryDate || ""}`
+        return users.filter((user) => {
+            const matchesSearch = `${user.name} ${user.username} ${user.role} ${user.status}`
                 .toLowerCase()
-                .includes(keyword)
-        );
-    }, [users, search]);
+                .includes(keyword);
+
+            const matchesStatus =
+                statusFilter === "All" || String(user.status) === statusFilter;
+
+            return matchesSearch && matchesStatus;
+        });
+    }, [users, search, statusFilter]);
 
     function closeDialog() {
         setDialog(null);
@@ -66,9 +72,21 @@ export default function Users() {
     }
 
     function updateUserCell(id, field, value) {
-        const nextUsers = users.map((user) =>
-            user.id === id ? { ...user, [field]: value } : user
-        );
+        const nextUsers = users.map((user) => {
+            if (user.id !== id) return user;
+
+            const updated = { ...user, [field]: value };
+
+            if (field === "role" && value === "admin") {
+                updated.expiryDate = "";
+            }
+
+            if (field === "role" && value === "student" && !updated.expiryDate) {
+                updated.expiryDate = defaultExpiryDate();
+            }
+
+            return updated;
+        });
 
         persist(nextUsers);
     }
@@ -96,12 +114,15 @@ export default function Users() {
             return;
         }
 
+        const isAdmin = newUser.role === "admin";
+
         const nextUsers = [
             ...users,
             {
                 id: `user-${Date.now()}`,
                 ...newUser,
                 username: newUser.username.trim().toLowerCase(),
+                expiryDate: isAdmin ? "" : newUser.expiryDate,
                 createdAt: todayDate(),
                 lastLogin: ""
             }
@@ -110,18 +131,18 @@ export default function Users() {
         persist(nextUsers);
         setNewUser(emptyUser);
 
-        showMessage(
-            "success",
-            "User Added",
-            "The user has been created and saved successfully."
-        );
+        showMessage("success", "User Added", "The user has been created successfully.");
     }
 
     function extendOneMonth(id) {
         const nextUsers = users.map((user) => {
             if (user.id !== id) return user;
+            if (user.role === "admin") return user;
 
-            const baseDate = user.expiryDate ? new Date(user.expiryDate) : new Date();
+            const currentExpiry = user.expiryDate ? new Date(user.expiryDate) : new Date();
+            const today = new Date();
+            const baseDate = currentExpiry > today ? currentExpiry : today;
+
             baseDate.setMonth(baseDate.getMonth() + 1);
 
             return {
@@ -132,6 +153,12 @@ export default function Users() {
         });
 
         persist(nextUsers);
+
+        showMessage(
+            "success",
+            "Access Extended",
+            "The student's access has been extended by 1 month and set to Active."
+        );
     }
 
     function askDeleteUser(user) {
@@ -161,12 +188,7 @@ export default function Users() {
 
     function saveAllUsers() {
         saveUsers(users);
-
-        showMessage(
-            "success",
-            "User Table Saved",
-            "All user changes have been saved and synced to your data layer."
-        );
+        showMessage("success", "Saved", "All user changes have been saved.");
     }
 
     return (
@@ -183,7 +205,7 @@ export default function Users() {
                             User Management
                         </h1>
                         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                            Excel-style user table with editable access expiry dates.
+                            Student accounts expire after 1 month. Admin accounts do not expire.
                         </p>
                     </div>
 
@@ -236,19 +258,31 @@ export default function Users() {
 
                     <select
                         value={newUser.role}
-                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                        onChange={(e) =>
+                            setNewUser({
+                                ...newUser,
+                                role: e.target.value,
+                                expiryDate: e.target.value === "admin" ? "" : defaultExpiryDate()
+                            })
+                        }
                         className="rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                     >
                         <option value="student">Student</option>
                         <option value="admin">Admin</option>
                     </select>
 
-                    <input
-                        type="date"
-                        value={newUser.expiryDate}
-                        onChange={(e) => setNewUser({ ...newUser, expiryDate: e.target.value })}
-                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                    />
+                    {newUser.role === "student" ? (
+                        <input
+                            type="date"
+                            value={newUser.expiryDate}
+                            onChange={(e) => setNewUser({ ...newUser, expiryDate: e.target.value })}
+                            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                        />
+                    ) : (
+                        <div className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-500 dark:border-slate-700">
+                            No expiry
+                        </div>
+                    )}
 
                     <button
                         onClick={addUser}
@@ -261,7 +295,7 @@ export default function Users() {
             </div>
 
             <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
-                <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-3">
                         <div className="rounded-2xl bg-slate-100 p-3 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                             <UsersIcon size={20} />
@@ -276,41 +310,53 @@ export default function Users() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
-                        <Search size={18} className="text-slate-400" />
-                        <input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search users..."
-                            className="w-full bg-transparent text-sm outline-none dark:text-white md:w-72"
-                        />
+                    <div className="flex flex-col gap-3 md:flex-row">
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                        >
+                            <option value="All">All</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+
+                        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                            <Search size={18} className="text-slate-400" />
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search users..."
+                                className="w-full bg-transparent text-sm outline-none dark:text-white md:w-72"
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <table className="min-w-[1120px] w-full border-collapse bg-white text-sm dark:bg-slate-950">
+                    <table className="w-full min-w-[1120px] border-collapse bg-white text-sm dark:bg-slate-950">
                         <thead>
                             <tr className="bg-slate-100 text-left text-xs font-black uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">#</th>
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Name</th>
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Username</th>
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Password</th>
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Role</th>
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Status</th>
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Created</th>
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Extend Access Until</th>
-                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Actions</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">#</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Name</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Username</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Password</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Role</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Status</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Created</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Access Until</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Actions</th>
                             </tr>
                         </thead>
 
                         <tbody>
                             {filteredUsers.map((user, index) => (
                                 <tr key={user.id} className="dark:text-white">
-                                    <td className="border border-slate-200 px-3 py-2 font-bold dark:border-slate-700">
+                                    <td className="border px-3 py-2 font-bold dark:border-slate-700">
                                         {index + 1}
                                     </td>
 
-                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                    <td className="border p-1 dark:border-slate-700">
                                         <input
                                             value={user.name || ""}
                                             onChange={(e) => updateUserCell(user.id, "name", e.target.value)}
@@ -318,7 +364,7 @@ export default function Users() {
                                         />
                                     </td>
 
-                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                    <td className="border p-1 dark:border-slate-700">
                                         <input
                                             value={user.username || ""}
                                             onChange={(e) => updateUserCell(user.id, "username", e.target.value)}
@@ -326,7 +372,7 @@ export default function Users() {
                                         />
                                     </td>
 
-                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                    <td className="border p-1 dark:border-slate-700">
                                         <input
                                             value={user.password || ""}
                                             onChange={(e) => updateUserCell(user.id, "password", e.target.value)}
@@ -335,7 +381,7 @@ export default function Users() {
                                         />
                                     </td>
 
-                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                    <td className="border p-1 dark:border-slate-700">
                                         <select
                                             value={user.role || "student"}
                                             onChange={(e) => updateUserCell(user.id, "role", e.target.value)}
@@ -346,7 +392,7 @@ export default function Users() {
                                         </select>
                                     </td>
 
-                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                    <td className="border p-1 dark:border-slate-700">
                                         <select
                                             value={user.status || "Active"}
                                             onChange={(e) => updateUserCell(user.id, "status", e.target.value)}
@@ -357,28 +403,36 @@ export default function Users() {
                                         </select>
                                     </td>
 
-                                    <td className="border border-slate-200 px-3 py-2 text-slate-500 dark:border-slate-700">
+                                    <td className="border px-3 py-2 text-slate-500 dark:border-slate-700">
                                         {user.createdAt || "-"}
                                     </td>
 
-                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
-                                        <input
-                                            type="date"
-                                            value={user.expiryDate || ""}
-                                            onChange={(e) => updateUserCell(user.id, "expiryDate", e.target.value)}
-                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-                                        />
+                                    <td className="border p-1 dark:border-slate-700">
+                                        {user.role === "admin" ? (
+                                            <span className="block px-2 py-2 font-bold text-slate-400">
+                                                No expiry
+                                            </span>
+                                        ) : (
+                                            <input
+                                                type="date"
+                                                value={user.expiryDate || ""}
+                                                onChange={(e) => updateUserCell(user.id, "expiryDate", e.target.value)}
+                                                className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+                                            />
+                                        )}
                                     </td>
 
-                                    <td className="border border-slate-200 p-2 dark:border-slate-700">
+                                    <td className="border p-2 dark:border-slate-700">
                                         <div className="flex gap-2">
-                                            <button
-                                                onClick={() => extendOneMonth(user.id)}
-                                                className="flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700"
-                                            >
-                                                <CalendarClock size={14} />
-                                                +1 Month
-                                            </button>
+                                            {user.role !== "admin" && (
+                                                <button
+                                                    onClick={() => extendOneMonth(user.id)}
+                                                    className="flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700"
+                                                >
+                                                    <CalendarClock size={14} />
+                                                    +1 Month
+                                                </button>
+                                            )}
 
                                             <button
                                                 onClick={() => askDeleteUser(user)}
@@ -401,11 +455,6 @@ export default function Users() {
                         </tbody>
                     </table>
                 </div>
-
-                <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    Tip: The date under <strong>Extend Access Until</strong> controls when a student expires.
-                    Use <strong>+1 Month</strong> to quickly extend access and reactivate the account.
-                </p>
             </div>
         </div>
     );
