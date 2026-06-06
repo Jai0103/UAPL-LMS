@@ -113,10 +113,10 @@ useEffect(() => {
                             AGA
                         </p>
                         <h1 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
-                            UAPL LMS
+                            UAPL Training Portal
                         </h1>
                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            Built by: Jairus
+                            Learn. Practice. Certify.
                         </p>
                     </div>
 
