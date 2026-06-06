@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
     ClipboardList,
@@ -33,6 +33,31 @@ export default function Layout({ session, theme, onThemeToggle, onLogout }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [confirmLogout, setConfirmLogout] = useState(false);
     const navigate = useNavigate();
+
+    const idleTimer = useRef(null);
+const SESSION_TIMEOUT = 30 * 60 * 1000;
+
+useEffect(() => {
+    function resetIdleTimer() {
+        clearTimeout(idleTimer.current);
+
+        idleTimer.current = setTimeout(() => {
+            clearSession();
+            onLogout();
+            navigate("/login");
+        }, SESSION_TIMEOUT);
+    }
+
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
+
+    events.forEach((event) => window.addEventListener(event, resetIdleTimer));
+    resetIdleTimer();
+
+    return () => {
+        clearTimeout(idleTimer.current);
+        events.forEach((event) => window.removeEventListener(event, resetIdleTimer));
+    };
+}, [navigate, onLogout]);
 
     const visibleNavItems = navItems.filter((item) => {
         if (item.adminOnly && session?.role !== "admin") return false;
