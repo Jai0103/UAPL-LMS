@@ -67,9 +67,9 @@ export default function Login({ onLogin }) {
             type: "info",
             title: "Disclaimer",
             message:
-                "This project is an <b>independent educational resource</b> and is <b>not affiliated with, endorsed by, or connected to the Civil Aviation Authority of Singapore (CAAS)</b>.</p>
-                <p>All questions and materials are intended strictly for <b>practice and learning purposes only</b>. They are not official examination content and may not accurately reflect the structure, wording, or content of the actual CAAS theory examination.</p>
-                <p>Users should refer to official CAAS publications and guidelines for the most accurate, current, and authoritative information.</p>",
+                "This project is an independent educational resource and is not affiliated with, endorsed by, or connected to the Civil Aviation Authority of Singapore (CAAS).
+                All questions and materials are intended strictly for practice and learning purposes only. They are not official examination content and may not accurately reflect the structure, wording, or content of the actual CAAS theory examination.
+                Users should refer to official CAAS publications and guidelines for the most accurate, current, and authoritative information.",
             confirmText: "I Understand",
             onConfirm: () => setDialog(null)
         });
