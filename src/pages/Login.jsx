@@ -1,83 +1,165 @@
-import { Plane } from "lucide-react";
 import { useState } from "react";
-import { login } from "../lib/auth";
+import { Lock, Loader2, Plane, User } from "lucide-react";
+import { authenticateUser } from "../lib/auth";
 import PremiumDialog from "../components/PremiumDialog";
 
 export default function Login({ onLogin }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [dialog, setDialog] = useState(null);
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [dialog, setDialog] = useState(null);
 
-  function submit(event) {
-    event.preventDefault();
+    async function handleSubmit(event) {
+        event.preventDefault();
 
-    if (!username.trim() || !password.trim()) {
-      setDialog({
-        type: "warning",
-        title: "Login details required",
-        message: "Please enter both username and password to continue."
-      });
-      return;
+        if (!username || !password) {
+            setDialog({
+                type: "warning",
+                title: "Login Details Required",
+                message: "Please enter your username and password to access the UAPL LMS.",
+                confirmText: "Continue",
+                onConfirm: () => setDialog(null)
+            });
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const result = await authenticateUser(username, password);
+
+            if (!result.success) {
+                setDialog({
+                    type: "danger",
+                    title: "Sign In Failed",
+                    message: result.message,
+                    confirmText: "Try Again",
+                    onConfirm: () => setDialog(null)
+                });
+                return;
+            }
+
+            setDialog({
+                type: "success",
+                title: "Welcome Back",
+                message: `Access granted. Welcome to your UAPL training dashboard, ${result.user.name}.`,
+                confirmText: "Enter Dashboard",
+                onConfirm: () => {
+                    setDialog(null);
+                    onLogin(result.user);
+                }
+            });
+        } catch {
+            setDialog({
+                type: "danger",
+                title: "Connection Error",
+                message: "Unable to connect to the Google Sheets backend. Please check the Apps Script Web App URL.",
+                confirmText: "Close",
+                onConfirm: () => setDialog(null)
+            });
+        } finally {
+            setLoading(false);
+        }
     }
 
-    const user = login(username.trim(), password);
+    return (
+        <div className="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-white">
+            <PremiumDialog open={!!dialog} {...dialog} />
 
-    if (!user) {
-      setDialog({
-        type: "warning",
-        title: "Access denied",
-        message: "The username or password entered is incorrect."
-      });
-      return;
-    }
+            <div className="fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.20),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(20,184,166,0.16),transparent_30%)]" />
 
-    onLogin(user);
-  }
+            <main className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10">
+                <div className="grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/60 bg-white/85 shadow-premium backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/80 lg:grid-cols-[1.05fr_0.95fr]">
+                    <section className="hidden bg-gradient-to-br from-blue-700 via-slate-900 to-cyan-700 p-10 text-white lg:block">
+                        <div className="flex h-full flex-col justify-between">
+                            <div>
+                                <div className="mb-8 inline-flex rounded-2xl bg-white/10 p-4">
+                                    <Plane size={36} />
+                                </div>
 
-  return (
-    <main className="grid min-h-screen place-items-center p-4">
-      <section className="glass w-full max-w-md rounded-3xl p-8">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-blue-700 to-cyan-500 text-white shadow-lg">
-          <Plane />
+                                <h1 className="text-4xl font-black leading-tight">
+                                    UAPL Premium Training Portal
+                                </h1>
+
+                                <p className="mt-4 max-w-md text-sm leading-7 text-blue-100">
+                                    Shared LMS powered by Google Sheets, designed for quiz practice,
+                                    flashcards, course notes, and student access management.
+                                </p>
+                            </div>
+
+                            <p className="text-sm font-semibold text-blue-100">
+                                Built by: Jairus
+                            </p>
+                        </div>
+                    </section>
+
+                    <section className="p-6 sm:p-10">
+                        <div className="mb-8">
+                            <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
+                                Apollo Global Academy
+                            </p>
+
+                            <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+                                Sign In
+                            </h2>
+
+                            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                                Enter your assigned account to continue.
+                            </p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <label className="block">
+                                <span className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">
+                                    Username
+                                </span>
+
+                                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
+                                    <User size={18} className="text-slate-400" />
+                                    <input
+                                        value={username}
+                                        onChange={(event) => setUsername(event.target.value)}
+                                        autoComplete="off"
+                                        className="w-full bg-transparent text-sm outline-none dark:text-white"
+                                        placeholder="Enter username"
+                                    />
+                                </div>
+                            </label>
+
+                            <label className="block">
+                                <span className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">
+                                    Password
+                                </span>
+
+                                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
+                                    <Lock size={18} className="text-slate-400" />
+                                    <input
+                                        value={password}
+                                        onChange={(event) => setPassword(event.target.value)}
+                                        type="password"
+                                        autoComplete="new-password"
+                                        className="w-full bg-transparent text-sm outline-none dark:text-white"
+                                        placeholder="Enter password"
+                                    />
+                                </div>
+                            </label>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                                {loading ? <Loader2 className="animate-spin" size={18} /> : <Plane size={18} />}
+                                {loading ? "Signing In..." : "Sign In"}
+                            </button>
+                        </form>
+
+                        <p className="mt-8 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            Built by: Jairus
+                        </p>
+                    </section>
+                </div>
+            </main>
         </div>
-
-        <div className="mt-6 text-center">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-600">Apollo Global Academy</p>
-          <h1 className="mt-2 text-3xl font-black">UAPL Training Portal</h1>
-          <p className="mt-2 text-slate-500 dark:text-slate-400">
-            Secure local access for quiz and flashcard training.
-          </p>
-        </div>
-
-        <form onSubmit={submit} className="mt-8 space-y-4">
-          <input
-            className="input"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
-            autoComplete="off"
-          />
-          <input
-            className="input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            type="password"
-            autoComplete="off"
-          />
-          <button className="btn-primary w-full">Sign In</button>
-        </form>
-      </section>
-
-      <PremiumDialog
-        open={!!dialog}
-        type={dialog?.type}
-        title={dialog?.title}
-        message={dialog?.message}
-        confirmText="OK"
-        cancelText="Close"
-        onClose={() => setDialog(null)}
-      />
-    </main>
-  );
+    );
 }
