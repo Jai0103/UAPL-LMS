@@ -205,7 +205,7 @@ export default function Users() {
                             User Management
                         </h1>
                         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                            Student accounts expire after 1 month. Admin accounts do not expire.
+                            Student accounts expire after 1 month. 
                         </p>
                     </div>
 
