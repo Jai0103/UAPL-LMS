@@ -1,23 +1,26 @@
-import { getUsers, saveSession } from "./storage";
+import { api } from "./api";
+import { saveSession, syncFromCloud } from "./storage";
 
-export function login(username, password) {
-  const user = getUsers().find(
-    (item) => item.username === username && item.password === password
-  );
+export async function authenticateUser(username, password) {
+    const result = await api.login(username.trim(), password);
 
-  if (!user) return null;
+    if (!result.success) {
+        return {
+            success: false,
+            message: result.message || "Invalid username or password."
+        };
+    }
 
-  const safeUser = {
-    id: user.id,
-    name: user.name,
-    username: user.username,
-    role: user.role
-  };
+    saveSession(result.user);
 
-  saveSession(safeUser);
-  return safeUser;
-}
+    try {
+        await syncFromCloud();
+    } catch {
+        // Login still works even if sync fails temporarily.
+    }
 
-export function isAdmin(user) {
-  return user?.role === "admin";
+    return {
+        success: true,
+        user: result.user
+    };
 }
