@@ -24,6 +24,8 @@ export default function Dashboard({ session }) {
     const flashcards = getFlashcards();
     const notes = getCourseNotes();
 
+    const isAdmin = session?.role === "admin";
+
     const filteredUsers = useMemo(() => {
         const keyword = search.toLowerCase();
 
@@ -34,7 +36,7 @@ export default function Dashboard({ session }) {
         );
     }, [users, search]);
 
-    const cards = [
+    const studentCards = [
         {
             label: "Questions",
             value: questions.length,
@@ -46,7 +48,11 @@ export default function Dashboard({ session }) {
             value: flashcards.length,
             icon: Layers,
             color: "bg-cyan-600"
-        },
+        }
+    ];
+
+    const adminCards = [
+        ...studentCards,
         {
             label: "Course Notes",
             value: notes.length,
@@ -60,6 +66,8 @@ export default function Dashboard({ session }) {
             color: "bg-indigo-600"
         }
     ];
+
+    const cards = isAdmin ? adminCards : studentCards;
 
     return (
         <div className="space-y-6">
@@ -75,11 +83,13 @@ export default function Dashboard({ session }) {
                         </h1>
 
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                            Continue your UAPL training journey by completing quizzes, reviewing flashcards, accessing course resources, and monitoring your progress.
+                            {isAdmin
+                                ? "Monitor the LMS content, users, notes, and training resources."
+                                : "Continue your UAPL quiz practice and flashcard review."}
                         </p>
 
                         <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            Developed by: Jairus
+                            Built by: Jairus
                         </p>
                     </div>
 
@@ -99,7 +109,7 @@ export default function Dashboard({ session }) {
                 </div>
             </section>
 
-            <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <section className={`grid gap-5 ${isAdmin ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-2"}`}>
                 {cards.map((card) => {
                     const Icon = card.icon;
 
@@ -113,7 +123,7 @@ export default function Dashboard({ session }) {
                                     <Icon size={22} />
                                 </div>
 
-                                {card.label === "Users" && session?.role === "admin" && (
+                                {card.label === "Users" && isAdmin && (
                                     <button
                                         onClick={() => setShowUsers(true)}
                                         className="rounded-xl bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -135,31 +145,32 @@ export default function Dashboard({ session }) {
                 })}
             </section>
 
-            <section className="grid gap-5 lg:grid-cols-2">
-                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
-                    <h2 className="text-lg font-black text-slate-950 dark:text-white">
-                        Training Overview
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        Use Quiz Mode for assessment practice and Flashcards for quick
-                        recall. Admin users can manage questions, users, course notes,
-                        imports, and backups.
-                    </p>
-                </div>
+            {isAdmin && (
+                <section className="grid gap-5 lg:grid-cols-2">
+                    <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                        <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                            Training Overview
+                        </h2>
+                        <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            Use Quiz Mode for assessment practice and Flashcards for quick
+                            recall. Admin users can manage questions, users, course notes,
+                            imports, and backups.
+                        </p>
+                    </div>
 
-                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
-                    <h2 className="text-lg font-black text-slate-950 dark:text-white">
-                        Local Storage Reminder
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        This system runs fully on GitHub Pages. Download a JSON backup
-                        regularly so your latest users, questions, notes, and flashcards
-                        can be restored if browser data is cleared.
-                    </p>
-                </div>
-            </section>
+                    <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                        <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                            Google Sheets Backend
+                        </h2>
+                        <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            Your LMS is connected to Google Sheets for shared user access,
+                            course notes, quiz content, flashcards, and quiz results.
+                        </p>
+                    </div>
+                </section>
+            )}
 
-            {showUsers && (
+            {showUsers && isAdmin && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
                     <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/60 bg-white shadow-2xl dark:border-white/10 dark:bg-slate-900">
                         <div className="border-b border-slate-200 p-5 dark:border-slate-800">
@@ -169,7 +180,7 @@ export default function Dashboard({ session }) {
                                         Users
                                     </h2>
                                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                                        {users.length} registered local users
+                                        {users.length} registered users
                                     </p>
                                 </div>
 
