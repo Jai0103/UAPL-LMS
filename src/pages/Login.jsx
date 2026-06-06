@@ -66,6 +66,7 @@ function openDisclaimer() {
     setDialog({
         type: "info",
         title: "Disclaimer",
+        justify: true,
         message: `This project is an independent educational resource and is not affiliated with, endorsed by, or connected to the Civil Aviation Authority of Singapore (CAAS).
 
 All quiz questions, explanations, flashcards, and course notes are provided for training, revision, and self-assessment purposes only. They should not be treated as official regulatory guidance, examination material, or legal advice.
