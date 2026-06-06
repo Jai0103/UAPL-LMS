@@ -9,7 +9,7 @@ import {
     X,
     XCircle
 } from "lucide-react";
-import { getQuestions } from "../lib/storage";
+import { getQuestions, submitQuizResult } from "../lib/storage";
 
 function PremiumPopup({ title, message, onClose }) {
     return (
@@ -49,7 +49,7 @@ function PremiumPopup({ title, message, onClose }) {
     );
 }
 
-export default function Quiz() {
+export default function Quiz({ session }) {
     const [questions] = useState(getQuestions());
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState(Array(getQuestions().length).fill(null));
@@ -130,6 +130,7 @@ export default function Quiz() {
 
     function restartQuiz() {
         clearAutoNext();
+        window.quizResultSaved = false;
         setCurrentIndex(0);
         setAnswers(Array(total).fill(null));
         setSelected(null);
@@ -239,8 +240,21 @@ export default function Quiz() {
         );
     }
 
-    if (finished) {
-        const finalAccuracy = Math.round((score / total) * 100);
+if (finished) {
+    const finalAccuracy = Math.round((score / total) * 100);
+
+    if (!window.quizResultSaved) {
+        submitQuizResult({
+            userId: session?.id || "",
+            username: session?.username || "",
+            score,
+            total,
+            accuracy: finalAccuracy,
+            submittedAt: new Date().toISOString()
+        });
+
+        window.quizResultSaved = true;
+    }
 
         return (
             <div className="rounded-3xl border border-white/60 bg-white/85 p-8 text-center shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
