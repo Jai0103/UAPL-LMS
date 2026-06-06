@@ -1,25 +1,46 @@
 import { useMemo, useState } from "react";
-import { Edit3, Plus, Save, Search, Trash2, Users as UsersIcon } from "lucide-react";
+import {
+    CalendarClock,
+    Plus,
+    Save,
+    Search,
+    Trash2,
+    UserPlus,
+    Users as UsersIcon
+} from "lucide-react";
 import { getUsers, saveUsers } from "../lib/storage";
 import PremiumDialog from "../components/PremiumDialog";
+
+function defaultExpiryDate() {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 1);
+    return date.toISOString().slice(0, 10);
+}
+
+function todayDate() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+const emptyUser = {
+    name: "",
+    username: "",
+    password: "",
+    role: "student",
+    status: "Active",
+    expiryDate: defaultExpiryDate()
+};
 
 export default function Users() {
     const [users, setUsers] = useState(getUsers());
     const [search, setSearch] = useState("");
-    const [editingId, setEditingId] = useState(null);
     const [dialog, setDialog] = useState(null);
-    const [form, setForm] = useState({
-        name: "",
-        username: "",
-        password: "",
-        role: "student",
-        status: "Active"
-    });
+    const [newUser, setNewUser] = useState(emptyUser);
 
     const filteredUsers = useMemo(() => {
         const keyword = search.toLowerCase();
+
         return users.filter((user) =>
-            `${user.name} ${user.username} ${user.role} ${user.status}`
+            `${user.name} ${user.username} ${user.role} ${user.status} ${user.expiryDate || ""}`
                 .toLowerCase()
                 .includes(keyword)
         );
@@ -39,82 +60,85 @@ export default function Users() {
         });
     }
 
-    function resetForm() {
-        setEditingId(null);
-        setForm({
-            name: "",
-            username: "",
-            password: "",
-            role: "student",
-            status: "Active"
-        });
+    function persist(nextUsers) {
+        setUsers(nextUsers);
+        saveUsers(nextUsers);
     }
 
-    function saveUser() {
-        if (!form.name || !form.username || !form.password) {
+    function updateUserCell(id, field, value) {
+        const nextUsers = users.map((user) =>
+            user.id === id ? { ...user, [field]: value } : user
+        );
+
+        persist(nextUsers);
+    }
+
+    function addUser() {
+        if (!newUser.name || !newUser.username || !newUser.password) {
             showMessage(
                 "warning",
                 "Incomplete User Details",
-                "Please complete the full name, username, and password before saving this user."
+                "Please complete the name, username, and password before adding a user."
             );
             return;
         }
 
         const usernameExists = users.some(
-            (user) =>
-                user.username.toLowerCase() === form.username.toLowerCase() &&
-                user.id !== editingId
+            (user) => user.username.toLowerCase() === newUser.username.toLowerCase()
         );
 
         if (usernameExists) {
             showMessage(
                 "danger",
                 "Username Already Exists",
-                "Please use a different username. Each login account must have a unique username."
+                "Please choose another username. Each user must have a unique login."
             );
             return;
         }
 
-        const nextUsers = editingId
-            ? users.map((user) =>
-                  user.id === editingId ? { ...user, ...form } : user
-              )
-            : [
-                  ...users,
-                  {
-                      id: `user-${Date.now()}`,
-                      ...form,
-                      createdAt: new Date().toISOString().slice(0, 10)
-                  }
-              ];
+        const nextUsers = [
+            ...users,
+            {
+                id: `user-${Date.now()}`,
+                ...newUser,
+                username: newUser.username.trim().toLowerCase(),
+                createdAt: todayDate(),
+                lastLogin: ""
+            }
+        ];
 
-        setUsers(nextUsers);
-        saveUsers(nextUsers);
-        resetForm();
+        persist(nextUsers);
+        setNewUser(emptyUser);
 
         showMessage(
             "success",
-            editingId ? "User Updated" : "User Created",
-            "The user account has been saved successfully in local browser storage."
+            "User Added",
+            "The user has been created and saved successfully."
         );
     }
 
-    function editUser(user) {
-        setEditingId(user.id);
-        setForm({
-            name: user.name || "",
-            username: user.username || "",
-            password: user.password || "",
-            role: user.role || "student",
-            status: user.status || "Active"
+    function extendOneMonth(id) {
+        const nextUsers = users.map((user) => {
+            if (user.id !== id) return user;
+
+            const baseDate = user.expiryDate ? new Date(user.expiryDate) : new Date();
+            baseDate.setMonth(baseDate.getMonth() + 1);
+
+            return {
+                ...user,
+                status: "Active",
+                expiryDate: baseDate.toISOString().slice(0, 10)
+            };
         });
+
+        persist(nextUsers);
     }
 
     function askDeleteUser(user) {
         setDialog({
             type: "danger",
             title: "Delete User?",
-            message: `This will permanently remove ${user.name} from this browser's local user list.`,
+            message: `This will permanently remove ${user.name} from the user list.`,
             confirmText: "Delete User",
             cancelText: "Cancel",
             onConfirm: () => deleteUser(user.id),
@@ -124,9 +148,7 @@ export default function Users() {
 
     function deleteUser(id) {
         const nextUsers = users.filter((user) => user.id !== id);
-        setUsers(nextUsers);
-        saveUsers(nextUsers);
-        resetForm();
+        persist(nextUsers);
 
         setDialog({
             type: "success",
@@ -137,145 +159,253 @@ export default function Users() {
         });
     }
 
+    function saveAllUsers() {
+        saveUsers(users);
+
+        showMessage(
+            "success",
+            "User Table Saved",
+            "All user changes have been saved and synced to your data layer."
+        );
+    }
+
     return (
         <div className="space-y-6">
             <PremiumDialog open={!!dialog} {...dialog} />
 
             <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
-                <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
-                    Admin
-                </p>
-                <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-                    User Management
-                </h1>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                    Manage admin and student accounts stored in this browser.
-                </p>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-                <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
-                    <div className="mb-4 flex items-center gap-3">
-                        <div className="rounded-2xl bg-blue-100 p-3 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300">
-                            {editingId ? <Edit3 size={20} /> : <Plus size={20} />}
-                        </div>
-                        <h2 className="text-lg font-black dark:text-white">
-                            {editingId ? "Edit User" : "Add User"}
-                        </h2>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
+                            Admin
+                        </p>
+                        <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+                            User Management
+                        </h1>
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                            Excel-style user table with editable access expiry dates.
+                        </p>
                     </div>
 
-                    <div className="space-y-3">
-                        <input
-                            value={form.name}
-                            onChange={(e) => setForm({ ...form, name: e.target.value })}
-                            placeholder="Full name"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        />
+                    <button
+                        onClick={saveAllUsers}
+                        className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                    >
+                        <Save size={18} />
+                        Save All Changes
+                    </button>
+                </div>
+            </div>
 
-                        <input
-                            value={form.username}
-                            onChange={(e) => setForm({ ...form, username: e.target.value })}
-                            placeholder="Username"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        />
-
-                        <input
-                            value={form.password}
-                            onChange={(e) => setForm({ ...form, password: e.target.value })}
-                            placeholder="Password"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        />
-
-                        <select
-                            value={form.role}
-                            onChange={(e) => setForm({ ...form, role: e.target.value })}
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        >
-                            <option value="student">Student</option>
-                            <option value="admin">Admin</option>
-                        </select>
-
-                        <select
-                            value={form.status}
-                            onChange={(e) => setForm({ ...form, status: e.target.value })}
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        >
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-
-                        <button
-                            onClick={saveUser}
-                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-                        >
-                            <Save size={18} />
-                            Save User
-                        </button>
-
-                        {editingId && (
-                            <button
-                                onClick={resetForm}
-                                className="w-full rounded-2xl border border-slate-200 px-5 py-3 font-black text-slate-700 dark:border-slate-700 dark:text-white"
-                            >
-                                Cancel Edit
-                            </button>
-                        )}
+            <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
+                <div className="mb-4 flex items-center gap-3">
+                    <div className="rounded-2xl bg-blue-100 p-3 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300">
+                        <UserPlus size={20} />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                            Add New User
+                        </h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            Student expiry defaults to 1 month from today.
+                        </p>
                     </div>
                 </div>
 
-                <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
-                    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+                    <input
+                        value={newUser.name}
+                        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                        placeholder="Full name"
+                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white xl:col-span-2"
+                    />
+
+                    <input
+                        value={newUser.username}
+                        onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                        placeholder="Username"
+                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    />
+
+                    <input
+                        value={newUser.password}
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        placeholder="Password"
+                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    />
+
+                    <select
+                        value={newUser.role}
+                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    >
+                        <option value="student">Student</option>
+                        <option value="admin">Admin</option>
+                    </select>
+
+                    <input
+                        type="date"
+                        value={newUser.expiryDate}
+                        onChange={(e) => setNewUser({ ...newUser, expiryDate: e.target.value })}
+                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    />
+
+                    <button
+                        onClick={addUser}
+                        className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                    >
+                        <Plus size={18} />
+                        Add
+                    </button>
+                </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
+                <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-2xl bg-slate-100 p-3 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            <UsersIcon size={20} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                                Users Table
+                            </h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                {filteredUsers.length} of {users.length} users shown
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
                         <Search size={18} className="text-slate-400" />
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search users..."
-                            className="w-full bg-transparent text-sm outline-none dark:text-white"
+                            className="w-full bg-transparent text-sm outline-none dark:text-white md:w-72"
                         />
                     </div>
-
-                    <div className="space-y-3">
-                        {filteredUsers.map((user) => (
-                            <div
-                                key={user.id}
-                                className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950 md:flex-row md:items-center md:justify-between"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="rounded-2xl bg-blue-50 p-3 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300">
-                                        <UsersIcon size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="font-black dark:text-white">{user.name}</p>
-                                        <p className="text-sm text-slate-500">
-                                            {user.username} • {user.role} • {user.status}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => editUser(user)}
-                                        className="rounded-xl bg-blue-50 px-4 py-2 text-sm font-black text-blue-700"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => askDeleteUser(user)}
-                                        className="rounded-xl bg-red-50 px-4 py-2 text-red-700"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-
-                        {!filteredUsers.length && (
-                            <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">
-                                No users found.
-                            </p>
-                        )}
-                    </div>
                 </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <table className="min-w-[1120px] w-full border-collapse bg-white text-sm dark:bg-slate-950">
+                        <thead>
+                            <tr className="bg-slate-100 text-left text-xs font-black uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">#</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Name</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Username</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Password</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Role</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Status</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Created</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Extend Access Until</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-700">Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {filteredUsers.map((user, index) => (
+                                <tr key={user.id} className="dark:text-white">
+                                    <td className="border border-slate-200 px-3 py-2 font-bold dark:border-slate-700">
+                                        {index + 1}
+                                    </td>
+
+                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                        <input
+                                            value={user.name || ""}
+                                            onChange={(e) => updateUserCell(user.id, "name", e.target.value)}
+                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+                                        />
+                                    </td>
+
+                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                        <input
+                                            value={user.username || ""}
+                                            onChange={(e) => updateUserCell(user.id, "username", e.target.value)}
+                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+                                        />
+                                    </td>
+
+                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                        <input
+                                            value={user.password || ""}
+                                            onChange={(e) => updateUserCell(user.id, "password", e.target.value)}
+                                            placeholder="New password"
+                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+                                        />
+                                    </td>
+
+                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                        <select
+                                            value={user.role || "student"}
+                                            onChange={(e) => updateUserCell(user.id, "role", e.target.value)}
+                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+                                        >
+                                            <option value="student">student</option>
+                                            <option value="admin">admin</option>
+                                        </select>
+                                    </td>
+
+                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                        <select
+                                            value={user.status || "Active"}
+                                            onChange={(e) => updateUserCell(user.id, "status", e.target.value)}
+                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+                                        >
+                                            <option value="Active">Active</option>
+                                            <option value="Inactive">Inactive</option>
+                                        </select>
+                                    </td>
+
+                                    <td className="border border-slate-200 px-3 py-2 text-slate-500 dark:border-slate-700">
+                                        {user.createdAt || "-"}
+                                    </td>
+
+                                    <td className="border border-slate-200 p-1 dark:border-slate-700">
+                                        <input
+                                            type="date"
+                                            value={user.expiryDate || ""}
+                                            onChange={(e) => updateUserCell(user.id, "expiryDate", e.target.value)}
+                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+                                        />
+                                    </td>
+
+                                    <td className="border border-slate-200 p-2 dark:border-slate-700">
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => extendOneMonth(user.id)}
+                                                className="flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700"
+                                            >
+                                                <CalendarClock size={14} />
+                                                +1 Month
+                                            </button>
+
+                                            <button
+                                                onClick={() => askDeleteUser(user)}
+                                                className="rounded-xl bg-red-50 px-3 py-2 text-red-700"
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+
+                            {!filteredUsers.length && (
+                                <tr>
+                                    <td colSpan="9" className="p-8 text-center text-slate-500">
+                                        No users found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    Tip: The date under <strong>Extend Access Until</strong> controls when a student expires.
+                    Use <strong>+1 Month</strong> to quickly extend access and reactivate the account.
+                </p>
             </div>
         </div>
     );
