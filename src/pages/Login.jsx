@@ -67,7 +67,9 @@ export default function Login({ onLogin }) {
             type: "info",
             title: "Disclaimer",
             message:
-                "This UAPL LMS and mock test portal is designed for training, revision, and self-assessment purposes only. The questions, explanations, notes, and results do not replace official CAAS publications, regulations, training materials, or instructor guidance. Users remain responsible for verifying current regulatory requirements from official sources before conducting any unmanned aircraft operation.",
+                "This project is an <b>independent educational resource</b> and is <b>not affiliated with, endorsed by, or connected to the Civil Aviation Authority of Singapore (CAAS)</b>.</p>
+                <p>All questions and materials are intended strictly for <b>practice and learning purposes only</b>. They are not official examination content and may not accurately reflect the structure, wording, or content of the actual CAAS theory examination.</p>
+                <p>Users should refer to official CAAS publications and guidelines for the most accurate, current, and authoritative information.</p>",
             confirmText: "I Understand",
             onConfirm: () => setDialog(null)
         });
@@ -89,12 +91,11 @@ export default function Login({ onLogin }) {
                                 </div>
 
                                 <h1 className="text-4xl font-black leading-tight">
-                                    UAPL Premium Training Portal
+                                    UAPL Training Portal
                                 </h1>
 
                                 <p className="mt-4 max-w-md text-sm leading-7 text-blue-100">
-                                    Shared LMS powered by Google Sheets, designed for quiz practice,
-                                    flashcards, course notes, and student access management.
+                                    A centralized learning platform designed to support your UAPL certification journey through interactive quizzes, flashcards, course materials, and progress tracking.
                                 </p>
 
                                 <div className="mt-8 flex items-center gap-3 rounded-3xl bg-white/10 p-4 backdrop-blur-xl">
