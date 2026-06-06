@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Lock, Loader2, Plane, User } from "lucide-react";
+import { FileText, Lock, Loader2, Plane, ShieldCheck, User } from "lucide-react";
 import { authenticateUser } from "../lib/auth";
 import PremiumDialog from "../components/PremiumDialog";
 
@@ -53,13 +53,24 @@ export default function Login({ onLogin }) {
             setDialog({
                 type: "danger",
                 title: "Connection Error",
-                message: "Unable to connect to the Google Sheets backend. Please check the Apps Script Web App URL.",
+                message: "Unable to connect to the Google Sheets backend. Please check the Apps Script Web App URL or internet connection.",
                 confirmText: "Close",
                 onConfirm: () => setDialog(null)
             });
         } finally {
             setLoading(false);
         }
+    }
+
+    function openDisclaimer() {
+        setDialog({
+            type: "info",
+            title: "Disclaimer",
+            message:
+                "This UAPL LMS and mock test portal is designed for training, revision, and self-assessment purposes only. The questions, explanations, notes, and results do not replace official CAAS publications, regulations, training materials, or instructor guidance. Users remain responsible for verifying current regulatory requirements from official sources before conducting any unmanned aircraft operation.",
+            confirmText: "I Understand",
+            onConfirm: () => setDialog(null)
+        });
     }
 
     return (
@@ -78,17 +89,34 @@ export default function Login({ onLogin }) {
                                 </div>
 
                                 <h1 className="text-4xl font-black leading-tight">
-                                    UAPL Training Portal
+                                    UAPL Premium Training Portal
                                 </h1>
 
                                 <p className="mt-4 max-w-md text-sm leading-7 text-blue-100">
-A centralized learning platform designed to support your CAAS UAPL certification journey through interactive quizzes, flashcards, course materials, and progress tracking.
+                                    Shared LMS powered by Google Sheets, designed for quiz practice,
+                                    flashcards, course notes, and student access management.
                                 </p>
+
+                                <div className="mt-8 flex items-center gap-3 rounded-3xl bg-white/10 p-4 backdrop-blur-xl">
+                                    <ShieldCheck size={24} />
+                                    <p className="text-sm font-semibold text-blue-50">
+                                        Secure access control for students and administrators.
+                                    </p>
+                                </div>
                             </div>
 
-                            <p className="text-sm font-semibold text-blue-100">
-                                
-                            </p>
+                            <div className="flex items-center justify-between gap-3 text-sm font-semibold text-blue-100">
+                                <span>Version 1.0 • Designed by: Jairus</span>
+
+                                <button
+                                    type="button"
+                                    onClick={openDisclaimer}
+                                    className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-black text-white transition hover:bg-white/20"
+                                >
+                                    <FileText size={14} />
+                                    Disclaimer
+                                </button>
+                            </div>
                         </div>
                     </section>
 
@@ -153,9 +181,18 @@ A centralized learning platform designed to support your CAAS UAPL certification
                             </button>
                         </form>
 
-                        <p className="mt-8 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            Version 1.0 • Developed by Jairus
-                        </p>
+                        <div className="mt-8 flex flex-col items-center justify-center gap-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 sm:flex-row">
+                            <span>Version 1.0 • Designed by: Jairus</span>
+
+                            <button
+                                type="button"
+                                onClick={openDisclaimer}
+                                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-950 dark:text-sky-300 dark:hover:bg-slate-800"
+                            >
+                                <FileText size={14} />
+                                Disclaimer
+                            </button>
+                        </div>
                     </section>
                 </div>
             </main>
