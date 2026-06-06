@@ -36,6 +36,7 @@ export default function PremiumDialog({
     message,
     confirmText = "Continue",
     cancelText,
+    justify = false,
     onConfirm,
     onCancel,
     onClose
@@ -63,7 +64,12 @@ export default function PremiumDialog({
                             <h2 className="text-lg font-black text-slate-950 dark:text-white">
                                 {title}
                             </h2>
-                            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+
+                            <p
+                                className={`mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300 ${
+                                    justify ? "text-justify" : ""
+                                }`}
+                            >
                                 {message}
                             </p>
                         </div>
