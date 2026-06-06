@@ -78,17 +78,16 @@ export default function Login({ onLogin }) {
                                 </div>
 
                                 <h1 className="text-4xl font-black leading-tight">
-                                    UAPL Premium Training Portal
+                                    UAPL Training Portal
                                 </h1>
 
                                 <p className="mt-4 max-w-md text-sm leading-7 text-blue-100">
-                                    Shared LMS powered by Google Sheets, designed for quiz practice,
-                                    flashcards, course notes, and student access management.
+A centralized learning platform designed to support your CAAS UAPL certification journey through interactive quizzes, flashcards, course materials, and progress tracking.
                                 </p>
                             </div>
 
                             <p className="text-sm font-semibold text-blue-100">
-                                Built by: Jairus
+                                
                             </p>
                         </div>
                     </section>
@@ -155,7 +154,7 @@ export default function Login({ onLogin }) {
                         </form>
 
                         <p className="mt-8 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            Built by: Jairus
+                            Version 1.0 • Developed by Jairus
                         </p>
                     </section>
                 </div>
