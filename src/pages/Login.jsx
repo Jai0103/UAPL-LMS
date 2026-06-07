@@ -103,7 +103,7 @@ Users remain responsible for checking the latest official CAAS publications, rul
                                 <div className="mt-8 flex items-center gap-3 rounded-3xl bg-white/10 p-4 backdrop-blur-xl">
                                     <ShieldCheck size={24} />
                                     <p className="text-sm font-semibold text-blue-50">
-                                        Secure access control for students and administrators.
+                                        Learn. Practice. Certify.
                                     </p>
                                 </div>
                             </div>
