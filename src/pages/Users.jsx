@@ -42,7 +42,7 @@ export default function Users() {
         const keyword = search.toLowerCase();
 
         return users.filter((user) => {
-            const matchesSearch = `${user.name} ${user.username} ${user.role} ${user.status}`
+            const matchesSearch = `${user.name} ${user.username} ${user.email || ""} ${user.role} ${user.status}`
                 .toLowerCase()
                 .includes(keyword);
 
@@ -123,6 +123,7 @@ export default function Users() {
                 id: `user-${Date.now()}`,
                 ...newUser,
                 username: newUser.username.trim().toLowerCase(),
+                email: newUser.email.trim(),
                 expiryDate: isAdmin ? "" : newUser.expiryDate,
                 createdAt: todayDate(),
                 lastLogin: ""
@@ -132,7 +133,11 @@ export default function Users() {
         persist(nextUsers);
         setNewUser(emptyUser);
 
-        showMessage("success", "User Added", "The user has been created successfully.");
+        showMessage(
+            "success",
+            "User Added",
+            "The user has been created. Click Save All Changes to sync and send the welcome email."
+        );
     }
 
     function extendOneMonth(id) {
@@ -189,7 +194,7 @@ export default function Users() {
 
     function saveAllUsers() {
         saveUsers(users);
-        showMessage("success", "Saved", "All user changes have been saved.");
+        showMessage("success", "Saved", "All user changes have been synced.");
     }
 
     return (
@@ -206,7 +211,7 @@ export default function Users() {
                             User Management
                         </h1>
                         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                            Student accounts expire after 1 month. 
+                            Add users, collect email addresses, and manage student access.
                         </p>
                     </div>
 
@@ -230,12 +235,12 @@ export default function Users() {
                             Add New User
                         </h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Student expiry defaults to 1 month from today.
+                            Email is required for automatic welcome credentials.
                         </p>
                     </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
                     <input
                         value={newUser.name}
                         onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
@@ -251,12 +256,12 @@ export default function Users() {
                     />
 
                     <input
-    value={newUser.email}
-    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-    placeholder="Email address"
-    type="email"
-    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-/>
+                        value={newUser.email}
+                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                        placeholder="Email address"
+                        type="email"
+                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white xl:col-span-2"
+                    />
 
                     <input
                         value={newUser.password}
@@ -279,19 +284,6 @@ export default function Users() {
                         <option value="student">Student</option>
                         <option value="admin">Admin</option>
                     </select>
-
-                    {newUser.role === "student" ? (
-                        <input
-                            type="date"
-                            value={newUser.expiryDate}
-                            onChange={(e) => setNewUser({ ...newUser, expiryDate: e.target.value })}
-                            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        />
-                    ) : (
-                        <div className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-500 dark:border-slate-700">
-                            No expiry
-                        </div>
-                    )}
 
                     <button
                         onClick={addUser}
@@ -343,7 +335,7 @@ export default function Users() {
                 </div>
 
                 <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <table className="w-full min-w-[1120px] border-collapse bg-white text-sm dark:bg-slate-950">
+                    <table className="w-full min-w-[1280px] border-collapse bg-white text-sm dark:bg-slate-950">
                         <thead>
                             <tr className="bg-slate-100 text-left text-xs font-black uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
                                 <th className="border px-3 py-3 dark:border-slate-700">#</th>
@@ -375,18 +367,18 @@ export default function Users() {
                                     </td>
 
                                     <td className="border p-1 dark:border-slate-700">
-    <input
-        value={user.email || ""}
-        type="email"
-        onChange={(e) => updateUserCell(user.id, "email", e.target.value)}
-        className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-    />
-</td>
-
-                                    <td className="border p-1 dark:border-slate-700">
                                         <input
                                             value={user.username || ""}
                                             onChange={(e) => updateUserCell(user.id, "username", e.target.value)}
+                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+                                        />
+                                    </td>
+
+                                    <td className="border p-1 dark:border-slate-700">
+                                        <input
+                                            value={user.email || ""}
+                                            type="email"
+                                            onChange={(e) => updateUserCell(user.id, "email", e.target.value)}
                                             className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
                                         />
                                     </td>
