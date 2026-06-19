@@ -2,68 +2,45 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
     AlertCircle,
     CheckCircle2,
+    ChevronLeft,
     ChevronRight,
     ClipboardCheck,
+    Eye,
+    Layers,
     RotateCcw,
+    Shuffle,
     Target,
-    X,
+    Timer,
+    Trophy,
     XCircle
 } from "lucide-react";
 import { getQuestions, submitQuizResult } from "../lib/storage";
+import PremiumDialog from "../components/PremiumDialog";
 
-function PremiumPopup({ title, message, onClose }) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-3xl border border-white/50 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex gap-3">
-                        <div className="rounded-2xl bg-amber-100 p-3 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                            <AlertCircle size={24} />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-black text-slate-950 dark:text-white">
-                                {title}
-                            </h2>
-                            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                                {message}
-                            </p>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={onClose}
-                        className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-
-                <button
-                    onClick={onClose}
-                    className="mt-6 w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-                >
-                    Select Answer
-                </button>
-            </div>
-        </div>
-    );
+function shuffleArray(items) {
+    return [...items].sort(() => Math.random() - 0.5);
 }
 
 export default function Quiz({ session }) {
-    const [questions] = useState(getQuestions());
+    const questionBank = useMemo(() => getQuestions(), []);
+    const [mode, setMode] = useState(null);
+    const [questions, setQuestions] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [answers, setAnswers] = useState(Array(getQuestions().length).fill(null));
+    const [answers, setAnswers] = useState([]);
     const [selected, setSelected] = useState(null);
     const [submitted, setSubmitted] = useState(false);
     const [finished, setFinished] = useState(false);
     const [showReview, setShowReview] = useState(false);
     const [reviewMistakesOnly, setReviewMistakesOnly] = useState(false);
-    const [popup, setPopup] = useState(null);
+    const [dialog, setDialog] = useState(null);
 
     const autoNextTimer = useRef(null);
+    const resultSaved = useRef(false);
 
     const current = questions[currentIndex];
     const total = questions.length;
+    const isPractice = mode === "practice";
+    const isMock = mode === "mock";
 
     const score = useMemo(() => {
         return answers.reduce((count, answer, index) => {
@@ -73,6 +50,7 @@ export default function Quiz({ session }) {
 
     const answeredCount = answers.filter((answer) => answer !== null).length;
     const liveAccuracy = answeredCount ? Math.round((score / answeredCount) * 100) : 0;
+    const finalAccuracy = total ? Math.round((score / total) * 100) : 0;
     const progress = total ? Math.round((answeredCount / total) * 100) : 0;
 
     useEffect(() => {
@@ -84,11 +62,32 @@ export default function Quiz({ session }) {
         autoNextTimer.current = null;
     }
 
-    function submitAnswer() {
+    function startQuiz(nextMode) {
+        clearAutoNext();
+
+        const preparedQuestions =
+            nextMode === "mock" ? shuffleArray(questionBank) : [...questionBank];
+
+        setMode(nextMode);
+        setQuestions(preparedQuestions);
+        setCurrentIndex(0);
+        setAnswers(Array(preparedQuestions.length).fill(null));
+        setSelected(null);
+        setSubmitted(false);
+        setFinished(false);
+        setShowReview(false);
+        setReviewMistakesOnly(false);
+        resultSaved.current = false;
+    }
+
+    function submitPracticeAnswer() {
         if (selected === null) {
-            setPopup({
+            setDialog({
+                type: "warning",
                 title: "No Answer Selected",
-                message: "Please choose one option before submitting your answer."
+                message: "Please select an option before submitting your answer.",
+                confirmText: "Choose Answer",
+                onConfirm: () => setDialog(null)
             });
             return;
         }
@@ -101,46 +100,134 @@ export default function Quiz({ session }) {
         clearAutoNext();
 
         autoNextTimer.current = setTimeout(() => {
-            moveNextOrFinish();
+            moveNextOrFinish(nextAnswers);
         }, 5000);
     }
 
-    function moveNextOrFinish() {
+    function saveMockAnswer(nextIndex) {
+        const nextAnswers = [...answers];
+        nextAnswers[currentIndex] = selected;
+        setAnswers(nextAnswers);
+
+        if (typeof nextIndex === "number") {
+            setCurrentIndex(nextIndex);
+            setSelected(nextAnswers[nextIndex]);
+        }
+
+        return nextAnswers;
+    }
+
+    function nextMockQuestion() {
+        if (selected === null) {
+            setDialog({
+                type: "warning",
+                title: "No Answer Selected",
+                message: "Please select an answer before moving to the next question.",
+                confirmText: "Continue",
+                onConfirm: () => setDialog(null)
+            });
+            return;
+        }
+
+        const nextAnswers = saveMockAnswer(
+            currentIndex < total - 1 ? currentIndex + 1 : currentIndex
+        );
+
+        if (currentIndex === total - 1) {
+            finishQuiz(nextAnswers);
+        }
+    }
+
+    function previousMockQuestion() {
+        const nextAnswers = [...answers];
+        if (selected !== null) nextAnswers[currentIndex] = selected;
+
+        setAnswers(nextAnswers);
+
+        const previousIndex = Math.max(currentIndex - 1, 0);
+        setCurrentIndex(previousIndex);
+        setSelected(nextAnswers[previousIndex]);
+    }
+
+    function moveNextOrFinish(nextAnswers = answers) {
         clearAutoNext();
 
         if (currentIndex < total - 1) {
             const nextIndex = currentIndex + 1;
             setCurrentIndex(nextIndex);
-            setSelected(answers[nextIndex]);
-            setSubmitted(answers[nextIndex] !== null);
+            setSelected(nextAnswers[nextIndex]);
+            setSubmitted(nextAnswers[nextIndex] !== null && isPractice);
         } else {
-            setFinished(true);
-            setSubmitted(false);
+            finishQuiz(nextAnswers);
         }
+    }
+
+    function finishQuiz(finalAnswers = answers) {
+        clearAutoNext();
+
+        const finalScore = finalAnswers.reduce((count, answer, index) => {
+            return answer === questions[index]?.answer ? count + 1 : count;
+        }, 0);
+
+        const finalPercent = questions.length
+            ? Math.round((finalScore / questions.length) * 100)
+            : 0;
+
+        if (!resultSaved.current) {
+            submitQuizResult({
+                userId: session?.id || "",
+                username: session?.username || "",
+                score: finalScore,
+                total: questions.length,
+                accuracy: finalPercent,
+                mode: mode || "",
+                submittedAt: new Date().toISOString()
+            });
+
+            resultSaved.current = true;
+        }
+
+        setAnswers(finalAnswers);
+        setFinished(true);
+        setSubmitted(false);
     }
 
     function goToQuestion(index) {
         clearAutoNext();
+
+        if (isMock) {
+            const nextAnswers = [...answers];
+            if (selected !== null) nextAnswers[currentIndex] = selected;
+            setAnswers(nextAnswers);
+            setSelected(nextAnswers[index]);
+        } else {
+            setSelected(answers[index]);
+            setSubmitted(answers[index] !== null);
+        }
+
         setCurrentIndex(index);
-        setSelected(answers[index]);
-        setSubmitted(answers[index] !== null);
         setShowReview(false);
-        setFinished(false);
     }
 
     function restartQuiz() {
+        startQuiz(mode);
+    }
+
+    function backToModeSelect() {
         clearAutoNext();
-        window.quizResultSaved = false;
+        setMode(null);
+        setQuestions([]);
         setCurrentIndex(0);
-        setAnswers(Array(total).fill(null));
+        setAnswers([]);
         setSelected(null);
         setSubmitted(false);
         setFinished(false);
         setShowReview(false);
         setReviewMistakesOnly(false);
+        resultSaved.current = false;
     }
 
-    if (!questions.length) {
+    if (!questionBank.length) {
         return (
             <div className="rounded-3xl border border-white/60 bg-white/85 p-8 text-center shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
                 <AlertCircle className="mx-auto text-amber-500" size={42} />
@@ -148,8 +235,67 @@ export default function Quiz({ session }) {
                     No Questions Found
                 </h1>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    Add questions in Quiz Manager or reset your local data.
+                    Add questions in Quiz Manager or sync your question bank.
                 </p>
+            </div>
+        );
+    }
+
+    if (!mode) {
+        return (
+            <div className="space-y-6">
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
+                    <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
+                        Quiz Mode
+                    </p>
+                    <h1 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+                        Choose Your Training Mode
+                    </h1>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        Practice Mode gives instant feedback. Mock Exam Mode randomizes the questions
+                        and hides answers until the end.
+                    </p>
+                </div>
+
+                <div className="grid gap-5 lg:grid-cols-2">
+                    <button
+                        onClick={() => startQuiz("practice")}
+                        className="group rounded-3xl border border-white/60 bg-white/90 p-6 text-left shadow-premium transition hover:-translate-y-1 hover:shadow-2xl dark:border-white/10 dark:bg-slate-900/80"
+                    >
+                        <div className="mb-5 inline-flex rounded-2xl bg-blue-600 p-4 text-white">
+                            <Target size={28} />
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-950 dark:text-white">
+                            Practice Mode
+                        </h2>
+                        <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            Answer one question at a time. The system shows the correct answer,
+                            explanation, and automatically moves to the next question after 5 seconds.
+                        </p>
+                        <div className="mt-6 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 dark:bg-sky-500/10 dark:text-sky-200">
+                            Instant feedback enabled
+                        </div>
+                    </button>
+
+                    <button
+                        onClick={() => startQuiz("mock")}
+                        className="group rounded-3xl border border-white/60 bg-white/90 p-6 text-left shadow-premium transition hover:-translate-y-1 hover:shadow-2xl dark:border-white/10 dark:bg-slate-900/80"
+                    >
+                        <div className="mb-5 inline-flex rounded-2xl bg-slate-950 p-4 text-white dark:bg-white dark:text-slate-950">
+                            <Shuffle size={28} />
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-950 dark:text-white">
+                            Mock Exam Mode
+                        </h2>
+                        <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            Questions are randomized. Answers and explanations are hidden until
+                            the quiz is completed, just like an exam-style attempt.
+                        </p>
+                        <div className="mt-6 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            Randomized questions enabled
+                        </div>
+                    </button>
+                </div>
             </div>
         );
     }
@@ -240,22 +386,7 @@ export default function Quiz({ session }) {
         );
     }
 
-if (finished) {
-    const finalAccuracy = Math.round((score / total) * 100);
-
-    if (!window.quizResultSaved) {
-        submitQuizResult({
-            userId: session?.id || "",
-            username: session?.username || "",
-            score,
-            total,
-            accuracy: finalAccuracy,
-            submittedAt: new Date().toISOString()
-        });
-
-        window.quizResultSaved = true;
-    }
-
+    if (finished) {
         return (
             <div className="rounded-3xl border border-white/60 bg-white/85 p-8 text-center shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
                 <ClipboardCheck className="mx-auto text-blue-600 dark:text-sky-300" size={52} />
@@ -264,30 +395,17 @@ if (finished) {
                     Quiz Completed
                 </h1>
 
+                <p className="mt-2 text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    {isMock ? "Mock Exam Mode" : "Practice Mode"}
+                </p>
+
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
-                    <div className="rounded-3xl bg-blue-50 p-5 dark:bg-sky-500/10">
-                        <p className="text-sm font-bold text-blue-700 dark:text-sky-200">Score</p>
-                        <p className="mt-1 text-3xl font-black text-blue-900 dark:text-white">
-                            {score}/{total}
-                        </p>
-                    </div>
-
-                    <div className="rounded-3xl bg-emerald-50 p-5 dark:bg-emerald-500/10">
-                        <p className="text-sm font-bold text-emerald-700 dark:text-emerald-200">Accuracy</p>
-                        <p className="mt-1 text-3xl font-black text-emerald-900 dark:text-white">
-                            {finalAccuracy}%
-                        </p>
-                    </div>
-
-                    <div className="rounded-3xl bg-amber-50 p-5 dark:bg-amber-500/10">
-                        <p className="text-sm font-bold text-amber-700 dark:text-amber-200">Mistakes</p>
-                        <p className="mt-1 text-3xl font-black text-amber-900 dark:text-white">
-                            {total - score}
-                        </p>
-                    </div>
+                    <ResultCard label="Score" value={`${score}/${total}`} tone="blue" />
+                    <ResultCard label="Accuracy" value={`${finalAccuracy}%`} tone="emerald" />
+                    <ResultCard label="Mistakes" value={total - score} tone="amber" />
                 </div>
 
-                <div className="mt-8 grid gap-3 md:grid-cols-3">
+                <div className="mt-8 grid gap-3 md:grid-cols-4">
                     <button
                         onClick={() => {
                             setReviewMistakesOnly(true);
@@ -313,7 +431,14 @@ if (finished) {
                         className="flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white dark:bg-white dark:text-slate-950"
                     >
                         <RotateCcw size={18} />
-                        Retake Quiz
+                        Retake
+                    </button>
+
+                    <button
+                        onClick={backToModeSelect}
+                        className="rounded-2xl border border-slate-200 px-5 py-3 font-bold text-slate-700 dark:border-slate-700 dark:text-white"
+                    >
+                        Change Mode
                     </button>
                 </div>
             </div>
@@ -322,19 +447,13 @@ if (finished) {
 
     return (
         <div className="space-y-6">
-            {popup && (
-                <PremiumPopup
-                    title={popup.title}
-                    message={popup.message}
-                    onClose={() => setPopup(null)}
-                />
-            )}
+            <PremiumDialog open={!!dialog} {...dialog} />
 
             <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-premium backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                         <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
-                            Quiz Mode
+                            {isMock ? "Mock Exam Mode" : "Practice Mode"}
                         </p>
                         <h1 className="text-2xl font-black text-slate-950 dark:text-white">
                             Question {currentIndex + 1} of {total}
@@ -342,22 +461,9 @@ if (finished) {
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 text-center">
-                        <div className="rounded-2xl bg-blue-50 px-4 py-3 dark:bg-sky-500/10">
-                            <p className="text-xs font-bold text-blue-700 dark:text-sky-200">Score</p>
-                            <p className="font-black text-slate-950 dark:text-white">{score}</p>
-                        </div>
-
-                        <div className="rounded-2xl bg-emerald-50 px-4 py-3 dark:bg-emerald-500/10">
-                            <p className="text-xs font-bold text-emerald-700 dark:text-emerald-200">Accuracy</p>
-                            <p className="font-black text-slate-950 dark:text-white">{liveAccuracy}%</p>
-                        </div>
-
-                        <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
-                            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Done</p>
-                            <p className="font-black text-slate-950 dark:text-white">
-                                {answeredCount}/{total}
-                            </p>
-                        </div>
+                        <Stat label="Score" value={isMock ? "Hidden" : score} />
+                        <Stat label="Accuracy" value={isMock ? "Hidden" : `${liveAccuracy}%`} />
+                        <Stat label="Done" value={`${answeredCount}/${total}`} />
                     </div>
                 </div>
 
@@ -375,6 +481,13 @@ if (finished) {
                         {current.question}
                     </h2>
 
+                    {isMock && (
+                        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                            <Eye size={18} />
+                            Answers and explanations are hidden until you complete the mock exam.
+                        </div>
+                    )}
+
                     <div className="mt-6 space-y-3">
                         {current.options.map((option, index) => {
                             const isCorrect = index === current.answer;
@@ -383,10 +496,10 @@ if (finished) {
                             let style =
                                 "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-800";
 
-                            if (submitted && isCorrect) {
+                            if (isPractice && submitted && isCorrect) {
                                 style =
                                     "border-emerald-400 bg-emerald-50 text-emerald-900 dark:border-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-100";
-                            } else if (submitted && isSelected && !isCorrect) {
+                            } else if (isPractice && submitted && isSelected && !isCorrect) {
                                 style =
                                     "border-red-400 bg-red-50 text-red-900 dark:border-red-500 dark:bg-red-500/10 dark:text-red-100";
                             } else if (isSelected) {
@@ -397,7 +510,7 @@ if (finished) {
                             return (
                                 <button
                                     key={index}
-                                    disabled={submitted}
+                                    disabled={isPractice && submitted}
                                     onClick={() => setSelected(index)}
                                     className={`flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition ${style}`}
                                 >
@@ -410,7 +523,7 @@ if (finished) {
                         })}
                     </div>
 
-                    {submitted && (
+                    {isPractice && submitted && (
                         <div
                             className={`mt-6 rounded-3xl border p-5 ${
                                 selectedIsCorrect
@@ -447,23 +560,44 @@ if (finished) {
                         </div>
                     )}
 
-                    <div className="mt-6">
-                        {!submitted ? (
-                            <button
-                                onClick={submitAnswer}
-                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-                            >
-                                <Target size={18} />
-                                Submit Answer
-                            </button>
+                    <div className="mt-6 grid gap-3 md:grid-cols-2">
+                        {isPractice ? (
+                            !submitted ? (
+                                <button
+                                    onClick={submitPracticeAnswer}
+                                    className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 md:col-span-2"
+                                >
+                                    <Target size={18} />
+                                    Submit Answer
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => moveNextOrFinish()}
+                                    className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 md:col-span-2"
+                                >
+                                    {currentIndex === total - 1 ? "Finish Quiz" : "Next Question"}
+                                    <ChevronRight size={18} />
+                                </button>
+                            )
                         ) : (
-                            <button
-                                onClick={moveNextOrFinish}
-                                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-                            >
-                                {currentIndex === total - 1 ? "Finish Quiz" : "Next Question"}
-                                <ChevronRight size={18} />
-                            </button>
+                            <>
+                                <button
+                                    onClick={previousMockQuestion}
+                                    disabled={currentIndex === 0}
+                                    className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 font-bold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:text-white"
+                                >
+                                    <ChevronLeft size={18} />
+                                    Previous
+                                </button>
+
+                                <button
+                                    onClick={nextMockQuestion}
+                                    className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                                >
+                                    {currentIndex === total - 1 ? "Submit Exam" : "Next"}
+                                    <ChevronRight size={18} />
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -481,10 +615,12 @@ if (finished) {
 
                             let style = "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
 
-                            if (answer !== null && isCorrect) {
+                            if (answer !== null && isPractice && isCorrect) {
                                 style = "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200";
-                            } else if (answer !== null && !isCorrect) {
+                            } else if (answer !== null && isPractice && !isCorrect) {
                                 style = "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200";
+                            } else if (answer !== null && isMock) {
+                                style = "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-200";
                             }
 
                             if (isActive) {
@@ -502,8 +638,40 @@ if (finished) {
                             );
                         })}
                     </div>
+
+                    <button
+                        onClick={backToModeSelect}
+                        className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 dark:border-slate-700 dark:text-white"
+                    >
+                        <Layers size={16} />
+                        Change Mode
+                    </button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+function Stat({ label, value }) {
+    return (
+        <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{label}</p>
+            <p className="font-black text-slate-950 dark:text-white">{value}</p>
+        </div>
+    );
+}
+
+function ResultCard({ label, value, tone }) {
+    const colors = {
+        blue: "bg-blue-50 text-blue-900 dark:bg-sky-500/10 dark:text-white",
+        emerald: "bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:text-white",
+        amber: "bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-white"
+    };
+
+    return (
+        <div className={`rounded-3xl p-5 ${colors[tone]}`}>
+            <p className="text-sm font-bold opacity-80">{label}</p>
+            <p className="mt-1 text-3xl font-black">{value}</p>
         </div>
     );
 }
