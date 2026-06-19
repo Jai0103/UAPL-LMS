@@ -1,11 +1,50 @@
-export async function saveUsers(users) {
-    write(USERS_KEY, users);
+const API_URL = "https://script.google.com/macros/library/d/1QYooPFyqeNSmQwmNiD4GUNQLispJJomdqoY5oDB67mf5f0DuT9U9Vjq-/9";
 
-    try {
-        await api.saveUsers(users);
-        console.log("Users synced to Google Sheets.");
-    } catch (error) {
-        console.error("Failed to sync users:", error);
-        alert("User was saved in this browser, but failed to sync to Google Sheets. Please check Apps Script deployment.");
+async function request(action, payload = {}) {
+    const body = new URLSearchParams();
+    body.append("action", action);
+    body.append("payload", JSON.stringify(payload));
+
+    const response = await fetch(API_URL, {
+        method: "POST",
+        body
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+        throw new Error(result.message || "Google Sheets API request failed.");
     }
+
+    return result;
 }
+
+export const api = {
+    login(username, password) {
+        return request("login", { username, password });
+    },
+
+    getBootstrap() {
+        return request("getBootstrap");
+    },
+
+    saveUsers(users) {
+        return request("saveUsers", { users });
+    },
+
+    saveQuestions(questions) {
+        return request("saveQuestions", { questions });
+    },
+
+    saveFlashcards(flashcards) {
+        return request("saveFlashcards", { flashcards });
+    },
+
+    saveCourseNotes(courseNotes) {
+        return request("saveCourseNotes", { courseNotes });
+    },
+
+    submitQuizResult(result) {
+        return request("submitQuizResult", result);
+    }
+};
