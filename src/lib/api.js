@@ -10,41 +10,20 @@ async function request(action, payload = {}) {
         body
     });
 
-    const result = await response.json();
-
-    if (!result.success) {
-        throw new Error(result.message || "Google Sheets API request failed.");
+    if (!response.ok) {
+        throw new Error("Unable to connect to the training database.");
     }
 
-    return result;
+    return response.json();
 }
 
 export const api = {
-    login(username, password) {
-        return request("login", { username, password });
-    },
-
-    getBootstrap() {
-        return request("getBootstrap");
-    },
-
-    saveUsers(users) {
-        return request("saveUsers", { users });
-    },
-
-    saveQuestions(questions) {
-        return request("saveQuestions", { questions });
-    },
-
-    saveFlashcards(flashcards) {
-        return request("saveFlashcards", { flashcards });
-    },
-
-    saveCourseNotes(courseNotes) {
-        return request("saveCourseNotes", { courseNotes });
-    },
-
-    submitQuizResult(result) {
-        return request("submitQuizResult", result);
-    }
+    login: (username, password) => request("login", { username, password }),
+    getBootstrap: () => request("getBootstrap"),
+    saveUsers: users => request("saveUsers", { users }),
+    saveQuestions: questions => request("saveQuestions", { questions }),
+    saveFlashcards: flashcards => request("saveFlashcards", { flashcards }),
+    saveCourseNotes: courseNotes => request("saveCourseNotes", { courseNotes }),
+    submitQuizResult: result => request("submitQuizResult", result),
+    sendLoginEmail: userId => request("sendLoginEmail", { userId })
 };
