@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { getSession, getTheme, initStorage, saveTheme } from "./lib/storage";
+import FlashcardManager from "./pages/FlashcardManager";
 
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
