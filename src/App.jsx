@@ -110,6 +110,15 @@ export default function App() {
                 />
 
                 <Route
+    path="/quiz-results"
+    element={
+        <AdminRoute session={session}>
+            <QuizResults />
+        </AdminRoute>
+    }
+/>
+
+                <Route
     path="/flashcard-manager"
     element={
         <AdminRoute session={session}>
