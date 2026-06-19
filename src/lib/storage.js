@@ -154,3 +154,7 @@ export function restoreBackup(data) {
     if (data.quizResults) write(QUIZ_RESULTS_KEY, data.quizResults);
     if (data.theme) saveTheme(data.theme);
 }
+
+export async function sendLoginEmail(userId) {
+    return api.sendLoginEmail(userId);
+}
