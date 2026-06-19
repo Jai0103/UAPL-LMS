@@ -109,6 +109,15 @@ export default function App() {
                 />
 
                 <Route
+    path="/flashcard-manager"
+    element={
+        <AdminRoute session={session}>
+            <FlashcardManager />
+        </AdminRoute>
+    }
+/>
+
+                <Route
                     path="/users"
                     element={
                         <AdminRoute session={session}>
@@ -125,6 +134,8 @@ export default function App() {
                         </AdminRoute>
                     }
                 />
+
+                
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
