@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { clearSession } from "../lib/storage";
 import PremiumDialog from "./PremiumDialog";
-
+import { BarChart3 } from "lucide-react";
 const navItems = [
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { label: "Quiz Mode", path: "/quiz", icon: ClipboardList },
