@@ -24,6 +24,7 @@ const navItems = [
     { label: "Flashcards", path: "/flashcards", icon: Layers },
     { label: "Course Notes", path: "/course-notes", icon: FileText },
     { label: "Quiz Manager", path: "/quiz-manager", icon: Settings2, adminOnly: true },
+    {label: "Flashcard Manager", path: "/flashcard-manager", icon: Layers, adminOnly: true },
     { label: "User Management", path: "/users", icon: Users, adminOnly: true },
     { label: "Import & Backup", path: "/import-backup", icon: UploadCloud, adminOnly: true },
     { label: "Settings", path: "/settings", icon: Settings }
