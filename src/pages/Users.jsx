@@ -10,6 +10,36 @@ import {
 } from "lucide-react";
 import { getUsers, saveUsers } from "../lib/storage";
 import PremiumDialog from "../components/PremiumDialog";
+import { getUsers, saveUsers, sendLoginEmail } from "../lib/storage";
+async function handleSendLoginEmail(user) {
+    if (!user.email) {
+        alert("This user has no email address.");
+        return;
+    }
+
+    const confirmed = window.confirm(
+        `Send login email to ${user.email}?\n\nThis will reset the user's password to a new temporary password.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        setSaving(true);
+
+        const result = await sendLoginEmail(user.id);
+
+        if (!result.success) {
+            alert(result.message || "Unable to send login email.");
+            return;
+        }
+
+        alert("Login email sent successfully. A new temporary password was issued.");
+    } catch (error) {
+        alert(error.message || "Unable to send login email.");
+    } finally {
+        setSaving(false);
+    }
+}
 
 function todayDate() {
     return new Date().toISOString().slice(0, 10);
@@ -451,6 +481,14 @@ export default function Users() {
                                             >
                                                 <Trash2 size={15} />
                                             </button>
+                                            <button
+    type="button"
+    onClick={() => handleSendLoginEmail(user)}
+    disabled={saving || !user.email || String(user.status).toLowerCase() !== "active"}
+    className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+>
+    Send Login Email
+</button>
                                         </div>
                                     </td>
                                 </tr>
