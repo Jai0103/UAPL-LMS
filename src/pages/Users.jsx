@@ -24,6 +24,7 @@ function defaultExpiryDate() {
 const emptyUser = {
     name: "",
     username: "",
+    email: "",
     password: "",
     role: "student",
     status: "Active",
@@ -92,11 +93,11 @@ export default function Users() {
     }
 
     function addUser() {
-        if (!newUser.name || !newUser.username || !newUser.password) {
+        if (!newUser.name || !newUser.username || !newUser.email || !newUser.password) {
             showMessage(
                 "warning",
                 "Incomplete User Details",
-                "Please complete the name, username, and password before adding a user."
+                "Please complete the name, username, email, and password before adding a user."
             );
             return;
         }
@@ -250,6 +251,14 @@ export default function Users() {
                     />
 
                     <input
+    value={newUser.email}
+    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+    placeholder="Email address"
+    type="email"
+    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+/>
+
+                    <input
                         value={newUser.password}
                         onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                         placeholder="Password"
@@ -340,6 +349,7 @@ export default function Users() {
                                 <th className="border px-3 py-3 dark:border-slate-700">#</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Name</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Username</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Email</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Password</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Role</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Status</th>
@@ -363,6 +373,15 @@ export default function Users() {
                                             className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
                                         />
                                     </td>
+
+                                    <td className="border p-1 dark:border-slate-700">
+    <input
+        value={user.email || ""}
+        type="email"
+        onChange={(e) => updateUserCell(user.id, "email", e.target.value)}
+        className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
+    />
+</td>
 
                                     <td className="border p-1 dark:border-slate-700">
                                         <input
@@ -447,7 +466,7 @@ export default function Users() {
 
                             {!filteredUsers.length && (
                                 <tr>
-                                    <td colSpan="9" className="p-8 text-center text-slate-500">
+                                    <td colSpan="10" className="p-8 text-center text-slate-500">
                                         No users found.
                                     </td>
                                 </tr>
