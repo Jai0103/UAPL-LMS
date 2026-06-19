@@ -1,510 +1,517 @@
 import { useMemo, useState } from "react";
 import {
-    CalendarClock,
+    CalendarPlus,
+    Mail,
     Plus,
     Save,
     Search,
+    ShieldCheck,
     Trash2,
-    UserPlus,
-    Users as UsersIcon
+    UserRound,
+    X
 } from "lucide-react";
-
-import PremiumDialog from "../components/PremiumDialog";
 import { getUsers, saveUsers, sendLoginEmail } from "../lib/storage";
-async function handleSendLoginEmail(user) {
-    if (!user.email) {
-        alert("This user has no email address.");
-        return;
-    }
 
-    const confirmed = window.confirm(
-        `Send login email to ${user.email}?\n\nThis will reset the user's password to a new temporary password.`
-    );
-
-    if (!confirmed) return;
-
-    try {
-        setSaving(true);
-
-        const result = await sendLoginEmail(user.id);
-
-        if (!result.success) {
-            alert(result.message || "Unable to send login email.");
-            return;
-        }
-
-        alert("Login email sent successfully. A new temporary password was issued.");
-    } catch (error) {
-        alert(error.message || "Unable to send login email.");
-    } finally {
-        setSaving(false);
-    }
+function createId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    return `user-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function todayDate() {
-    return new Date().toISOString().slice(0, 10);
+function todayIso() {
+    return new Date().toISOString();
 }
 
-function defaultExpiryDate() {
-    const date = new Date();
+function addOneMonth(dateValue) {
+    const date = dateValue ? new Date(dateValue) : new Date();
+    if (Number.isNaN(date.getTime())) return "";
+
     date.setMonth(date.getMonth() + 1);
     return date.toISOString().slice(0, 10);
 }
 
-const emptyUser = {
-    name: "",
-    username: "",
-    email: "",
-    password: "",
-    role: "student",
-    status: "Active",
-    expiryDate: defaultExpiryDate()
-};
+function defaultStudentExpiry() {
+    return addOneMonth(new Date());
+}
 
 export default function Users() {
-    const [users, setUsers] = useState(getUsers());
+    const [users, setUsers] = useState(() => getUsers());
+    const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
-    const [dialog, setDialog] = useState(null);
-    const [newUser, setNewUser] = useState(emptyUser);
+    const [notice, setNotice] = useState(null);
+    const [emailTarget, setEmailTarget] = useState(null);
+
+    const [form, setForm] = useState({
+        name: "",
+        username: "",
+        email: "",
+        password: "",
+        role: "student",
+        status: "Active",
+        expiryDate: defaultStudentExpiry()
+    });
 
     const filteredUsers = useMemo(() => {
-        const keyword = search.toLowerCase();
+        return users.filter(user => {
+            const keyword = search.toLowerCase();
 
-        return users.filter((user) => {
-            const matchesSearch = `${user.name} ${user.username} ${user.email || ""} ${user.role} ${user.status}`
-                .toLowerCase()
-                .includes(keyword);
+            const matchesSearch =
+                user.name?.toLowerCase().includes(keyword) ||
+                user.username?.toLowerCase().includes(keyword) ||
+                user.email?.toLowerCase().includes(keyword);
 
             const matchesStatus =
-                statusFilter === "All" || String(user.status) === statusFilter;
+                statusFilter === "All" ||
+                String(user.status).toLowerCase() === statusFilter.toLowerCase();
 
             return matchesSearch && matchesStatus;
         });
     }, [users, search, statusFilter]);
 
-    function closeDialog() {
-        setDialog(null);
+    function showNotice(type, message) {
+        setNotice({ type, message });
+        setTimeout(() => setNotice(null), 3500);
     }
 
-    function showMessage(type, title, message) {
-        setDialog({
-            type,
-            title,
-            message,
-            confirmText: "Done",
-            onConfirm: closeDialog
-        });
-    }
-
-    function persist(nextUsers) {
-        setUsers(nextUsers);
-        saveUsers(nextUsers);
-    }
-
-    function updateUserCell(id, field, value) {
-        const nextUsers = users.map((user) => {
-            if (user.id !== id) return user;
-
-            const updated = { ...user, [field]: value };
+    function updateForm(field, value) {
+        setForm(previous => {
+            const next = { ...previous, [field]: value };
 
             if (field === "role" && value === "admin") {
-                updated.expiryDate = "";
+                next.expiryDate = "";
             }
 
-            if (field === "role" && value === "student" && !updated.expiryDate) {
-                updated.expiryDate = defaultExpiryDate();
+            if (field === "role" && value === "student" && !next.expiryDate) {
+                next.expiryDate = defaultStudentExpiry();
             }
 
-            return updated;
+            return next;
         });
-
-        persist(nextUsers);
     }
 
-    function addUser() {
-        if (!newUser.name || !newUser.username || !newUser.email || !newUser.password) {
-            showMessage(
-                "warning",
-                "Incomplete User Details",
-                "Please complete the name, username, email, and password before adding a user."
-            );
+    function addUser(event) {
+        event.preventDefault();
+
+        if (!form.name.trim() || !form.username.trim() || !form.password.trim()) {
+            showNotice("error", "Please complete name, username, and password.");
             return;
         }
 
-        const usernameExists = users.some(
-            (user) => user.username.toLowerCase() === newUser.username.toLowerCase()
-        );
-
-        if (usernameExists) {
-            showMessage(
-                "danger",
-                "Username Already Exists",
-                "Please choose another username. Each user must have a unique login."
-            );
+        if (users.some(user => user.username.toLowerCase() === form.username.trim().toLowerCase())) {
+            showNotice("error", "Username already exists.");
             return;
         }
 
-        const isAdmin = newUser.role === "admin";
+        const createdAt = todayIso();
 
-        const nextUsers = [
-            ...users,
-            {
-                id: `user-${Date.now()}`,
-                ...newUser,
-                username: newUser.username.trim().toLowerCase(),
-                email: newUser.email.trim(),
-                expiryDate: isAdmin ? "" : newUser.expiryDate,
-                createdAt: todayDate(),
-                lastLogin: ""
-            }
-        ];
+        const newUser = {
+            id: createId(),
+            name: form.name.trim(),
+            username: form.username.trim().toLowerCase(),
+            email: form.email.trim(),
+            password: form.password,
+            role: form.role,
+            status: form.status,
+            expiryDate: form.role === "admin" ? "" : form.expiryDate,
+            createdAt,
+            lastLogin: ""
+        };
 
-        persist(nextUsers);
-        setNewUser(emptyUser);
+        setUsers(previous => [...previous, newUser]);
 
-        showMessage(
-            "success",
-            "User Added",
-            "The user has been created. Click Save All Changes to sync and send the welcome email."
-        );
-    }
-
-    function extendOneMonth(id) {
-        const nextUsers = users.map((user) => {
-            if (user.id !== id) return user;
-            if (user.role === "admin") return user;
-
-            const currentExpiry = user.expiryDate ? new Date(user.expiryDate) : new Date();
-            const today = new Date();
-            const baseDate = currentExpiry > today ? currentExpiry : today;
-
-            baseDate.setMonth(baseDate.getMonth() + 1);
-
-            return {
-                ...user,
-                status: "Active",
-                expiryDate: baseDate.toISOString().slice(0, 10)
-            };
+        setForm({
+            name: "",
+            username: "",
+            email: "",
+            password: "",
+            role: "student",
+            status: "Active",
+            expiryDate: defaultStudentExpiry()
         });
 
-        persist(nextUsers);
-
-        showMessage(
-            "success",
-            "Access Extended",
-            "The student's access has been extended by 1 month and set to Active."
-        );
+        showNotice("success", "User added. Click Save All Changes to sync.");
     }
 
-    function askDeleteUser(user) {
-        setDialog({
-            type: "danger",
-            title: "Delete User?",
-            message: `This will permanently remove ${user.name} from the user list.`,
-            confirmText: "Delete User",
-            cancelText: "Cancel",
-            onConfirm: () => deleteUser(user.id),
-            onCancel: closeDialog
-        });
+    function updateUser(id, field, value) {
+        setUsers(previous =>
+            previous.map(user => {
+                if (user.id !== id) return user;
+
+                const next = { ...user, [field]: value };
+
+                if (field === "role" && value === "admin") {
+                    next.expiryDate = "";
+                    next.status = "Active";
+                }
+
+                if (field === "role" && value === "student" && !next.expiryDate) {
+                    next.expiryDate = defaultStudentExpiry();
+                }
+
+                return next;
+            })
+        );
     }
 
     function deleteUser(id) {
-        const nextUsers = users.filter((user) => user.id !== id);
-        persist(nextUsers);
+        const user = users.find(item => item.id === id);
 
-        setDialog({
-            type: "success",
-            title: "User Deleted",
-            message: "The selected user has been removed successfully.",
-            confirmText: "Done",
-            onConfirm: closeDialog
-        });
+        if (user?.role === "admin") {
+            showNotice("error", "Admin accounts cannot be deleted here.");
+            return;
+        }
+
+        const confirmed = window.confirm(`Delete ${user?.name || "this user"}?`);
+        if (!confirmed) return;
+
+        setUsers(previous => previous.filter(item => item.id !== id));
     }
 
-    function saveAllUsers() {
-        saveUsers(users);
-        showMessage("success", "Saved", "All user changes have been synced.");
+    function extendUser(id) {
+        setUsers(previous =>
+            previous.map(user => {
+                if (user.id !== id) return user;
+                if (String(user.role).toLowerCase() === "admin") return user;
+
+                return {
+                    ...user,
+                    status: "Active",
+                    expiryDate: addOneMonth(user.expiryDate || user.createdAt)
+                };
+            })
+        );
+    }
+
+    async function saveAllUsers() {
+        try {
+            setSaving(true);
+
+            const usersToSave = users.map(user => ({
+                ...user,
+                expiryDate: String(user.role).toLowerCase() === "admin" ? "" : user.expiryDate
+            }));
+
+            const result = await saveUsers(usersToSave);
+
+            if (result?.success === false) {
+                showNotice("error", result.message || "Unable to save users.");
+                return;
+            }
+
+            setUsers(usersToSave.map(({ password, ...user }) => user));
+            showNotice("success", "Users saved to training database.");
+        } catch (error) {
+            showNotice("error", error.message || "Unable to save users.");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function confirmSendLoginEmail() {
+        if (!emailTarget) return;
+
+        try {
+            setSaving(true);
+
+            const result = await sendLoginEmail(emailTarget.id);
+
+            if (!result.success) {
+                showNotice("error", result.message || "Unable to send login email.");
+                return;
+            }
+
+            showNotice("success", "Login email sent. A new temporary password was issued.");
+            setEmailTarget(null);
+        } catch (error) {
+            showNotice("error", error.message || "Unable to send login email.");
+        } finally {
+            setSaving(false);
+        }
     }
 
     return (
         <div className="space-y-6">
-            <PremiumDialog open={!!dialog} {...dialog} />
-
-            <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
-                            Admin
-                        </p>
-                        <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-                            User Management
-                        </h1>
-                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                            Add users, collect email addresses, and manage student access.
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={saveAllUsers}
-                        className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-                    >
-                        <Save size={18} />
-                        Save All Changes
-                    </button>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400">
+                        Admin Console
+                    </p>
+                    <h1 className="text-3xl font-black text-slate-950 dark:text-white">
+                        User Management
+                    </h1>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                        Manage student access, expiry dates, status, email, and login access.
+                    </p>
                 </div>
+
+                <button
+                    onClick={saveAllUsers}
+                    disabled={saving}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950"
+                >
+                    <Save size={18} />
+                    {saving ? "Saving..." : "Save All Changes"}
+                </button>
             </div>
 
-            <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
+            {notice && (
+                <div className={`rounded-2xl border px-5 py-4 text-sm font-semibold shadow-lg ${
+                    notice.type === "success"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                        : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200"
+                }`}>
+                    {notice.message}
+                </div>
+            )}
+
+            <form
+                onSubmit={addUser}
+                className="rounded-3xl border border-white/60 bg-white/80 p-5 shadow-xl backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80"
+            >
                 <div className="mb-4 flex items-center gap-3">
-                    <div className="rounded-2xl bg-blue-100 p-3 text-blue-700 dark:bg-sky-500/10 dark:text-sky-300">
-                        <UserPlus size={20} />
+                    <div className="rounded-2xl bg-sky-100 p-3 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                        <Plus size={20} />
                     </div>
                     <div>
-                        <h2 className="text-lg font-black text-slate-950 dark:text-white">
-                            Add New User
-                        </h2>
+                        <h2 className="font-black text-slate-950 dark:text-white">Add New User</h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Email is required for automatic welcome credentials.
+                            Student access expires automatically after one month unless extended.
                         </p>
                     </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
-                    <input
-                        value={newUser.name}
-                        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                        placeholder="Full name"
-                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white xl:col-span-2"
-                    />
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <input className="input-box" placeholder="Full name" value={form.name} onChange={event => updateForm("name", event.target.value)} />
+                    <input className="input-box" placeholder="Username" value={form.username} onChange={event => updateForm("username", event.target.value)} />
+                    <input className="input-box" placeholder="Email address" value={form.email} onChange={event => updateForm("email", event.target.value)} />
+                    <input className="input-box" placeholder="Password" value={form.password} onChange={event => updateForm("password", event.target.value)} />
 
-                    <input
-                        value={newUser.username}
-                        onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                        placeholder="Username"
-                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                    />
-
-                    <input
-                        value={newUser.email}
-                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                        placeholder="Email address"
-                        type="email"
-                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white xl:col-span-2"
-                    />
-
-                    <input
-                        value={newUser.password}
-                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                        placeholder="Password"
-                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                    />
-
-                    <select
-                        value={newUser.role}
-                        onChange={(e) =>
-                            setNewUser({
-                                ...newUser,
-                                role: e.target.value,
-                                expiryDate: e.target.value === "admin" ? "" : defaultExpiryDate()
-                            })
-                        }
-                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                    >
+                    <select className="input-box" value={form.role} onChange={event => updateForm("role", event.target.value)}>
                         <option value="student">Student</option>
                         <option value="admin">Admin</option>
                     </select>
 
-                    <button
-                        onClick={addUser}
-                        className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
-                    >
+                    <select className="input-box" value={form.status} onChange={event => updateForm("status", event.target.value)}>
+                        <option>Active</option>
+                        <option>Inactive</option>
+                    </select>
+
+                    <input
+                        className="input-box"
+                        type="date"
+                        value={form.expiryDate}
+                        disabled={form.role === "admin"}
+                        onChange={event => updateForm("expiryDate", event.target.value)}
+                    />
+
+                    <button className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-700">
                         <Plus size={18} />
-                        Add
+                        Add User
                     </button>
                 </div>
-            </div>
+            </form>
 
-            <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
-                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="rounded-2xl bg-slate-100 p-3 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                            <UsersIcon size={20} />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-black text-slate-950 dark:text-white">
-                                Users Table
-                            </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                {filteredUsers.length} of {users.length} users shown
-                            </p>
-                        </div>
+            <div className="rounded-3xl border border-white/60 bg-white/80 p-5 shadow-xl backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80">
+                <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h2 className="font-black text-slate-950 dark:text-white">Users Table</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            Excel-style view for editing student access.
+                        </p>
                     </div>
 
-                    <div className="flex flex-col gap-3 md:flex-row">
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        >
-                            <option value="All">All</option>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-
-                        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
-                            <Search size={18} className="text-slate-400" />
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={event => setSearch(event.target.value)}
                                 placeholder="Search users..."
-                                className="w-full bg-transparent text-sm outline-none dark:text-white md:w-72"
+                                className="input-box pl-10 sm:w-72"
                             />
                         </div>
+
+                        <select className="input-box" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
+                            <option>All</option>
+                            <option>Active</option>
+                            <option>Inactive</option>
+                        </select>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <table className="w-full min-w-[1280px] border-collapse bg-white text-sm dark:bg-slate-950">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1180px] border-collapse text-sm">
                         <thead>
-                            <tr className="bg-slate-100 text-left text-xs font-black uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                                <th className="border px-3 py-3 dark:border-slate-700">#</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Name</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Username</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Email</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Password</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Role</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Status</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Created</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Access Until</th>
-                                <th className="border px-3 py-3 dark:border-slate-700">Actions</th>
+                            <tr className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-800">Name</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-800">Username</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-800">Email</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-800">New Password</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-800">Role</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-800">Status</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-800">Expiry Date</th>
+                                <th className="border border-slate-200 px-3 py-3 dark:border-slate-800">Actions</th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            {filteredUsers.map((user, index) => (
-                                <tr key={user.id} className="dark:text-white">
-                                    <td className="border px-3 py-2 font-bold dark:border-slate-700">
-                                        {index + 1}
-                                    </td>
+                            {filteredUsers.map(user => {
+                                const isAdmin = String(user.role).toLowerCase() === "admin";
+                                const canSendEmail = !isAdmin && user.email && String(user.status).toLowerCase() === "active";
 
-                                    <td className="border p-1 dark:border-slate-700">
-                                        <input
-                                            value={user.name || ""}
-                                            onChange={(e) => updateUserCell(user.id, "name", e.target.value)}
-                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-                                        />
-                                    </td>
+                                return (
+                                    <tr key={user.id} className="bg-white dark:bg-slate-900">
+                                        <td className="border border-slate-200 p-2 dark:border-slate-800">
+                                            <input className="table-input" value={user.name || ""} onChange={event => updateUser(user.id, "name", event.target.value)} />
+                                        </td>
 
-                                    <td className="border p-1 dark:border-slate-700">
-                                        <input
-                                            value={user.username || ""}
-                                            onChange={(e) => updateUserCell(user.id, "username", e.target.value)}
-                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-                                        />
-                                    </td>
+                                        <td className="border border-slate-200 p-2 dark:border-slate-800">
+                                            <input className="table-input" value={user.username || ""} onChange={event => updateUser(user.id, "username", event.target.value.toLowerCase())} />
+                                        </td>
 
-                                    <td className="border p-1 dark:border-slate-700">
-                                        <input
-                                            value={user.email || ""}
-                                            type="email"
-                                            onChange={(e) => updateUserCell(user.id, "email", e.target.value)}
-                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-                                        />
-                                    </td>
+                                        <td className="border border-slate-200 p-2 dark:border-slate-800">
+                                            <input className="table-input" value={user.email || ""} onChange={event => updateUser(user.id, "email", event.target.value)} />
+                                        </td>
 
-                                    <td className="border p-1 dark:border-slate-700">
-                                        <input
-                                            value={user.password || ""}
-                                            onChange={(e) => updateUserCell(user.id, "password", e.target.value)}
-                                            placeholder="New password"
-                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-                                        />
-                                    </td>
+                                        <td className="border border-slate-200 p-2 dark:border-slate-800">
+                                            <input className="table-input" placeholder="Leave blank to keep" value={user.password || ""} onChange={event => updateUser(user.id, "password", event.target.value)} />
+                                        </td>
 
-                                    <td className="border p-1 dark:border-slate-700">
-                                        <select
-                                            value={user.role || "student"}
-                                            onChange={(e) => updateUserCell(user.id, "role", e.target.value)}
-                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-                                        >
-                                            <option value="student">student</option>
-                                            <option value="admin">admin</option>
-                                        </select>
-                                    </td>
+                                        <td className="border border-slate-200 p-2 dark:border-slate-800">
+                                            <select className="table-input" value={user.role || "student"} onChange={event => updateUser(user.id, "role", event.target.value)}>
+                                                <option value="student">student</option>
+                                                <option value="admin">admin</option>
+                                            </select>
+                                        </td>
 
-                                    <td className="border p-1 dark:border-slate-700">
-                                        <select
-                                            value={user.status || "Active"}
-                                            onChange={(e) => updateUserCell(user.id, "status", e.target.value)}
-                                            className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-                                        >
-                                            <option value="Active">Active</option>
-                                            <option value="Inactive">Inactive</option>
-                                        </select>
-                                    </td>
+                                        <td className="border border-slate-200 p-2 dark:border-slate-800">
+                                            <select className="table-input" value={user.status || "Active"} disabled={isAdmin} onChange={event => updateUser(user.id, "status", event.target.value)}>
+                                                <option>Active</option>
+                                                <option>Inactive</option>
+                                            </select>
+                                        </td>
 
-                                    <td className="border px-3 py-2 text-slate-500 dark:border-slate-700">
-                                        {user.createdAt || "-"}
-                                    </td>
+                                        <td className="border border-slate-200 p-2 dark:border-slate-800">
+                                            <input className="table-input" type="date" value={isAdmin ? "" : user.expiryDate || ""} disabled={isAdmin} onChange={event => updateUser(user.id, "expiryDate", event.target.value)} />
+                                        </td>
 
-                                    <td className="border p-1 dark:border-slate-700">
-                                        {user.role === "admin" ? (
-                                            <span className="block px-2 py-2 font-bold text-slate-400">
-                                                No expiry
-                                            </span>
-                                        ) : (
-                                            <input
-                                                type="date"
-                                                value={user.expiryDate || ""}
-                                                onChange={(e) => updateUserCell(user.id, "expiryDate", e.target.value)}
-                                                className="w-full rounded-lg bg-transparent px-2 py-2 outline-none focus:bg-blue-50 dark:focus:bg-slate-800"
-                                            />
-                                        )}
-                                    </td>
-
-                                    <td className="border p-2 dark:border-slate-700">
-                                        <div className="flex gap-2">
-                                            {user.role !== "admin" && (
-                                                <button
-                                                    onClick={() => extendOneMonth(user.id)}
-                                                    className="flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700"
-                                                >
-                                                    <CalendarClock size={14} />
+                                        <td className="border border-slate-200 p-2 dark:border-slate-800">
+                                            <div className="flex flex-wrap gap-2">
+                                                <button type="button" onClick={() => extendUser(user.id)} disabled={isAdmin} className="action-btn bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40">
+                                                    <CalendarPlus size={14} />
                                                     +1 Month
                                                 </button>
-                                            )}
 
-                                            <button
-                                                onClick={() => askDeleteUser(user)}
-                                                className="rounded-xl bg-red-50 px-3 py-2 text-red-700"
-                                            >
-                                                <Trash2 size={15} />
-                                            </button>
-                                            <button
-    type="button"
-    onClick={() => handleSendLoginEmail(user)}
-    disabled={saving || !user.email || String(user.status).toLowerCase() !== "active"}
-    className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
->
-    Send Login Email
-</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                                <button type="button" onClick={() => setEmailTarget(user)} disabled={!canSendEmail || saving} className="action-btn bg-sky-600 hover:bg-sky-700 disabled:opacity-40">
+                                                    <Mail size={14} />
+                                                    Send Login Email
+                                                </button>
 
-                            {!filteredUsers.length && (
-                                <tr>
-                                    <td colSpan="10" className="p-8 text-center text-slate-500">
-                                        No users found.
-                                    </td>
-                                </tr>
-                            )}
+                                                <button type="button" onClick={() => deleteUser(user.id)} disabled={isAdmin} className="action-btn bg-rose-600 hover:bg-rose-700 disabled:opacity-40">
+                                                    <Trash2 size={14} />
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
+
+                    {!filteredUsers.length && (
+                        <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+                            No users found.
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {emailTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-lg rounded-3xl border border-white/60 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex gap-3">
+                                <div className="rounded-2xl bg-sky-100 p-3 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                                    <Mail size={22} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-950 dark:text-white">
+                                        Send Login Email
+                                    </h2>
+                                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                                        This will reset the user password to a new temporary password and send it to:
+                                    </p>
+                                    <p className="mt-2 font-bold text-sky-700 dark:text-sky-300">
+                                        {emailTarget.email}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button onClick={() => setEmailTarget(null)} className="rounded-full bg-slate-100 p-2 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                            <button onClick={() => setEmailTarget(null)} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+                                Cancel
+                            </button>
+
+                            <button onClick={confirmSendLoginEmail} disabled={saving} className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-700 disabled:opacity-60">
+                                {saving ? "Sending..." : "Send Login Email"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                .input-box {
+                    width: 100%;
+                    border-radius: 1rem;
+                    border: 1px solid rgb(226 232 240);
+                    background: white;
+                    padding: 0.75rem 1rem;
+                    font-size: 0.875rem;
+                    outline: none;
+                }
+
+                .dark .input-box {
+                    border-color: rgb(51 65 85);
+                    background: rgb(2 6 23);
+                    color: white;
+                }
+
+                .table-input {
+                    width: 100%;
+                    border-radius: 0.75rem;
+                    border: 1px solid rgb(226 232 240);
+                    background: white;
+                    padding: 0.6rem 0.75rem;
+                    font-size: 0.875rem;
+                    outline: none;
+                }
+
+                .dark .table-input {
+                    border-color: rgb(51 65 85);
+                    background: rgb(15 23 42);
+                    color: white;
+                }
+
+                .action-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.35rem;
+                    border-radius: 0.75rem;
+                    padding: 0.55rem 0.75rem;
+                    font-size: 0.75rem;
+                    font-weight: 800;
+                    color: white;
+                    transition: 0.18s ease;
+                }
+            `}</style>
         </div>
     );
 }
