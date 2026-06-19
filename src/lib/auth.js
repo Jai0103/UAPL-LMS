@@ -13,11 +13,9 @@ export async function authenticateUser(username, password) {
 
     saveSession(result.user);
 
-    try {
-        await syncFromCloud();
-    } catch {
-        // Login still works even if sync fails temporarily.
-    }
+    syncFromCloud().catch((error) => {
+        console.error("Background sync failed:", error);
+    });
 
     return {
         success: true,
