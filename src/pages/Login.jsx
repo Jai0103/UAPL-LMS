@@ -109,7 +109,7 @@ Users remain responsible for checking the latest official CAAS publications, rul
                             </div>
 
                             <div className="flex items-center justify-between gap-3 text-sm font-semibold text-blue-100">
-                                <span>Version 1.0 • Designed by: Jairus</span>
+                                <span>Version 1.0 • Powered by: Jairus GitHub Repositories</span>
 
                                 <button
                                     type="button"
@@ -185,7 +185,7 @@ Users remain responsible for checking the latest official CAAS publications, rul
                         </form>
 
                         <div className="mt-8 flex flex-col items-center justify-center gap-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 sm:flex-row">
-                            <span>Version 1.0 • Designed by: Jairus</span>
+                            <span>Version 1.0 • Powered by: Jairus GitHub Repositories</span>
 
                             <button
                                 type="button"
