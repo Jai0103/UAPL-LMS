@@ -20,6 +20,12 @@ import PremiumDialog from "./PremiumDialog";
 import { BarChart3 } from "lucide-react";
 const navItems = [
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    {
+    label: "Quiz Results",
+    path: "/quiz-results",
+    icon: BarChart3,
+    adminOnly: true
+},
     { label: "Quiz Mode", path: "/quiz", icon: ClipboardList },
     { label: "Flashcards", path: "/flashcards", icon: Layers },
     { label: "Course Notes", path: "/course-notes", icon: FileText },
