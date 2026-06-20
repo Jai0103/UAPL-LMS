@@ -1,21 +1,18 @@
-/*
-  You are looking for your MotherFather!
-*/
 export const DEFAULT_USERS = [
     {
-        id: "You are looking for your MotherFather",
-        name: "You are looking for your MotherFather",
-        username: "You are looking for your MotherFather",
-        password: "You are looking for your MotherFather",
+        id: "admin-001",
+        name: "Jairus Admin",
+        username: "admin",
+        password: "admin123",
         role: "admin",
         status: "Active",
         createdAt: "2026-01-01"
     },
     {
-        id: "You are looking for your MotherFather",
-        name: "You are looking for your MotherFather",
-        username: "You are looking for your MotherFather",
-        password: "You are looking for your MotherFather",
+        id: "student-001",
+        name: "Student One",
+        username: "student",
+        password: "student123",
         role: "student",
         status: "Active",
         createdAt: "2026-01-01"
