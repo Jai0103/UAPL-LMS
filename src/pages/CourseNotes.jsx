@@ -180,10 +180,10 @@ export default function CourseNotes({ session }) {
                                 {selectedNote.title}
                             </h2>
                             <iframe
-                                src={selectedNote.url}
+                                src={`${selectedNote.url}#toolbar=0&navpanes=0&scrollbar=0`}
                                 title={selectedNote.title}
                                 className="h-[70vh] min-h-[520px] w-full rounded-2xl border border-slate-200 dark:border-slate-700"
-                            />
+                            />    
                         </>
                     ) : (
                         <div className="flex h-[520px] items-center justify-center text-center text-slate-500">
