@@ -126,7 +126,7 @@ Users remain responsible for checking the latest official CAAS publications, rul
                     <section className="p-6 sm:p-10">
                         <div className="mb-8">
 <img
-      src="/CompressJPEG.Online_img(512x512).png"
+      src="/logo.png"
       alt="Apollo Global Academy"
       className="h-12 w-auto"
     />
