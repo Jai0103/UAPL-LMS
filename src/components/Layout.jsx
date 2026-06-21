@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { clearSession } from "../lib/storage";
 import PremiumDialog from "./PremiumDialog";
-import logo from "/logo2.png";
+import logo2 from "/logo2.png";
 import { BarChart3 } from "lucide-react";
 const navItems = [
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
