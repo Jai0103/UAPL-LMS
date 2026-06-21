@@ -125,9 +125,11 @@ Users remain responsible for checking the latest official CAAS publications, rul
 
                     <section className="p-6 sm:p-10">
                         <div className="mb-8">
-                            <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-sky-300">
-                                Apollo Global Academy
-                            </p>
+<img
+      src="/CompressJPEG.Online_img(512x512).png"
+      alt="Apollo Global Academy"
+      className="h-12 w-auto"
+    />
 
                             <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
                                 Sign In
