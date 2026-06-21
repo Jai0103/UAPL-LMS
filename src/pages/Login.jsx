@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FileText, Lock, Loader2, Plane, ShieldCheck, User } from "lucide-react";
 import { authenticateUser } from "../lib/auth";
 import PremiumDialog from "../components/PremiumDialog";
+import logo from "/logo.png";
 
 export default function Login({ onLogin }) {
     const [username, setUsername] = useState("");
@@ -126,8 +127,9 @@ Users remain responsible for checking the latest official CAAS publications, rul
                     <section className="p-6 sm:p-10">
                         <div className="mb-8">
 <img
-  src="https://via.placeholder.com/200x80.png?text=Logo"
-  alt="test"
+  src={logo}
+  alt="Apollo Global Academy"
+  className="h-12 w-auto"
 />
 
                             <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
