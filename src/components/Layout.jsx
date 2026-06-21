@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { clearSession } from "../lib/storage";
 import PremiumDialog from "./PremiumDialog";
+import logo from "/logo2.png";
 import { BarChart3 } from "lucide-react";
 const navItems = [
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -116,9 +117,11 @@ useEffect(() => {
             >
                 <div className="mb-7 flex items-center justify-between">
                     <div>
-                        <p className="text-xs font-black uppercase tracking-[0.28em] text-blue-600 dark:text-sky-300">
-                            AGA
-                        </p>
+<img
+  src={logo2}
+  alt="Apollo Global Academy"
+  className="h-12 w-auto"
+/>
                         <h1 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
                             UAPL Training Portal
                         </h1>
