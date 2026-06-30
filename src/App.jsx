@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { api } from "./lib/api";
 
 import FlashcardManager from "./pages/FlashcardManager";
 import QuizResults from "./pages/QuizResults";
