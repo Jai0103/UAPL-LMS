@@ -96,6 +96,50 @@ export default function App() {
         };
     }, [session]);
 
+    useEffect(() => {
+        if (!session) return;
+
+        const idleLimit = 5 * 60 * 1000;
+        let idleTimer;
+
+        function logoutDueToInactivity() {
+            clearSession();
+            setSession(null);
+
+            window.alert(
+                "You have been signed out because your session was inactive for 5 minutes."
+            );
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(logoutDueToInactivity, idleLimit);
+        }
+
+        const activityEvents = [
+            "mousemove",
+            "mousedown",
+            "keydown",
+            "scroll",
+            "touchstart",
+            "click"
+        ];
+
+        activityEvents.forEach(eventName => {
+            window.addEventListener(eventName, resetIdleTimer);
+        });
+
+        resetIdleTimer();
+
+        return () => {
+            clearTimeout(idleTimer);
+
+            activityEvents.forEach(eventName => {
+                window.removeEventListener(eventName, resetIdleTimer);
+            });
+        };
+    }, [session]);
+
     async function handleLogin(nextSession) {
         setSession(nextSession);
         setIsBooting(true);
