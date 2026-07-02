@@ -188,6 +188,17 @@ Users remain responsible for checking the latest official CAAS publications, rul
                                 {loading ? <Loader2 className="animate-spin" size={18} /> : <Plane size={18} />}
                                 {loading ? "Signing In..." : "Sign In"}
                             </button>
+                            <div className="mt-5 flex flex-col items-center justify-center gap-2 text-sm sm:flex-row">
+    <Link to="/forgot-password" className="font-semibold text-sky-600 hover:text-sky-700">
+        Forgot password?
+    </Link>
+
+    <span className="hidden text-slate-400 sm:block">•</span>
+
+    <Link to="/register" className="font-semibold text-sky-600 hover:text-sky-700">
+        Create new account
+    </Link>
+</div>
                         </form>
 
                         <div className="mt-8 flex flex-col items-center justify-center gap-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 sm:flex-row">
