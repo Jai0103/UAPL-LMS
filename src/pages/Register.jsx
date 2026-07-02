@@ -1,36 +1,62 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, Lock, Mail, ShieldCheck, UserPlus } from "lucide-react";
+import { CheckCircle2, Lock, ShieldCheck, UserPlus } from "lucide-react";
 import { api } from "../lib/api";
 
 const DRAFT_KEY = "uapl_registration_draft_v1";
 
-export default function Register() {
-    const [form, setForm] = useState({
+function getInitialForm() {
+    const startedAt = Date.now();
+
+    try {
+        const saved = localStorage.getItem(DRAFT_KEY);
+
+        if (saved) {
+            const parsed = JSON.parse(saved);
+
+            return {
+                name: parsed.name || "",
+                username: parsed.username || "",
+                email: parsed.email || "",
+                password: parsed.password || "",
+                confirmPassword: parsed.confirmPassword || "",
+                notRobot: parsed.notRobot || false,
+                website: "",
+                startedAt
+            };
+        }
+    } catch {
+        localStorage.removeItem(DRAFT_KEY);
+    }
+
+    return {
         name: "",
         username: "",
         email: "",
         password: "",
-        confirmPassword: ""
-    });
+        confirmPassword: "",
+        notRobot: false,
+        website: "",
+        startedAt
+    };
+}
 
+export default function Register() {
+    const [form, setForm] = useState(getInitialForm);
     const [status, setStatus] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        const saved = localStorage.getItem(DRAFT_KEY);
+        const draft = {
+            name: form.name,
+            username: form.username,
+            email: form.email,
+            password: form.password,
+            confirmPassword: form.confirmPassword,
+            notRobot: form.notRobot
+        };
 
-        if (saved) {
-            try {
-                setForm(JSON.parse(saved));
-            } catch {
-                localStorage.removeItem(DRAFT_KEY);
-            }
-        }
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }, [form]);
 
     const passwordChecks = useMemo(() => {
@@ -68,6 +94,14 @@ export default function Register() {
             return;
         }
 
+        if (!form.notRobot) {
+            setStatus({
+                type: "error",
+                message: "Please confirm that you are not a robot."
+            });
+            return;
+        }
+
         try {
             setSubmitting(true);
 
@@ -75,7 +109,10 @@ export default function Register() {
                 name: form.name,
                 username: form.username,
                 email: form.email,
-                password: form.password
+                password: form.password,
+                notRobot: form.notRobot,
+                website: form.website,
+                startedAt: form.startedAt
             });
 
             if (!result.success) {
@@ -93,7 +130,10 @@ export default function Register() {
                 username: "",
                 email: "",
                 password: "",
-                confirmPassword: ""
+                confirmPassword: "",
+                notRobot: false,
+                website: "",
+                startedAt: Date.now()
             });
 
             setStatus({
@@ -124,7 +164,7 @@ export default function Register() {
                         </h1>
 
                         <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                            Create your student account request. Your access will remain inactive until reviewed and approved by the administrator.
+                            Create your student account request. Your access remains inactive until reviewed and approved by the administrator.
                         </p>
 
                         <div className="mt-8 space-y-4">
@@ -143,7 +183,19 @@ export default function Register() {
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="rounded-[2rem] border border-white/60 bg-white/85 p-6 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/85 sm:p-8">
+                <form
+                    onSubmit={handleSubmit}
+                    className="rounded-[2rem] border border-white/60 bg-white/85 p-6 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/85 sm:p-8"
+                >
+                    <input
+                        type="text"
+                        value={form.website}
+                        onChange={event => updateForm("website", event.target.value)}
+                        className="hidden"
+                        tabIndex="-1"
+                        autoComplete="off"
+                    />
+
                     <div className="mb-6">
                         <div className="mb-4 inline-flex rounded-2xl bg-sky-100 p-3 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
                             <UserPlus size={26} />
@@ -212,17 +264,38 @@ export default function Register() {
 
                     <div className="mt-5 grid gap-2 sm:grid-cols-2">
                         {passwordChecks.map(item => (
-                            <div key={item.label} className={`flex items-center gap-2 text-xs font-semibold ${
-                                item.passed ? "text-emerald-600" : "text-slate-400"
-                            }`}>
+                            <div
+                                key={item.label}
+                                className={`flex items-center gap-2 text-xs font-semibold ${
+                                    item.passed ? "text-emerald-600" : "text-slate-400"
+                                }`}
+                            >
                                 <CheckCircle2 size={14} />
                                 {item.label}
                             </div>
                         ))}
                     </div>
 
+                    <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-950">
+                        <input
+                            type="checkbox"
+                            checked={form.notRobot}
+                            onChange={event => updateForm("notRobot", event.target.checked)}
+                            className="mt-1 h-5 w-5 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                        />
+
+                        <span>
+                            <span className="block font-bold text-slate-900 dark:text-white">
+                                I’m not a robot
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">
+                                I confirm that I am submitting this registration request personally.
+                            </span>
+                        </span>
+                    </label>
+
                     <button
-                        disabled={submitting || !canSubmit}
+                        disabled={submitting || !canSubmit || !form.notRobot}
                         className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <Lock size={18} />
