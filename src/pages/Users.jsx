@@ -437,10 +437,10 @@ export default function Users() {
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-black text-slate-950 dark:text-white">
-                                        Send Login Email
+                                        Send Activation Email
                                     </h2>
                                     <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                                        This will reset the user password to a new temporary password and send it to:
+                                        This will notify the user that their account is active. Their password will not be changed.
                                     </p>
                                     <p className="mt-2 font-bold text-sky-700 dark:text-sky-300">
                                         {emailTarget.email}
