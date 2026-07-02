@@ -1,0 +1,242 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { CheckCircle2, Lock, Mail, ShieldCheck, UserPlus } from "lucide-react";
+import { api } from "../lib/api";
+
+const DRAFT_KEY = "uapl_registration_draft_v1";
+
+export default function Register() {
+    const [form, setForm] = useState({
+        name: "",
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: ""
+    });
+
+    const [status, setStatus] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        const saved = localStorage.getItem(DRAFT_KEY);
+
+        if (saved) {
+            try {
+                setForm(JSON.parse(saved));
+            } catch {
+                localStorage.removeItem(DRAFT_KEY);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+    }, [form]);
+
+    const passwordChecks = useMemo(() => {
+        return [
+            { label: "At least 8 characters", passed: form.password.length >= 8 },
+            { label: "One uppercase letter", passed: /[A-Z]/.test(form.password) },
+            { label: "One lowercase letter", passed: /[a-z]/.test(form.password) },
+            { label: "One number", passed: /[0-9]/.test(form.password) },
+            { label: "Passwords match", passed: form.password && form.password === form.confirmPassword }
+        ];
+    }, [form.password, form.confirmPassword]);
+
+    const canSubmit = passwordChecks.every(item => item.passed);
+
+    function updateForm(field, value) {
+        const nextValue = field === "username"
+            ? value.toLowerCase().replace(/\s+/g, "")
+            : value;
+
+        setForm(previous => ({
+            ...previous,
+            [field]: nextValue
+        }));
+    }
+
+    async function handleSubmit(event) {
+        event.preventDefault();
+        setStatus(null);
+
+        if (!canSubmit) {
+            setStatus({
+                type: "error",
+                message: "Please complete the password security requirements."
+            });
+            return;
+        }
+
+        try {
+            setSubmitting(true);
+
+            const result = await api.registerUser({
+                name: form.name,
+                username: form.username,
+                email: form.email,
+                password: form.password
+            });
+
+            if (!result.success) {
+                setStatus({
+                    type: "error",
+                    message: result.message || "Unable to submit registration."
+                });
+                return;
+            }
+
+            localStorage.removeItem(DRAFT_KEY);
+
+            setForm({
+                name: "",
+                username: "",
+                email: "",
+                password: "",
+                confirmPassword: ""
+            });
+
+            setStatus({
+                type: "success",
+                message: result.message || "Registration submitted successfully."
+            });
+        } catch (error) {
+            setStatus({
+                type: "error",
+                message: error.message || "Unable to submit registration."
+            });
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    return (
+        <div className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950 dark:bg-slate-950 dark:text-white">
+            <div className="mx-auto grid min-h-[calc(100vh-64px)] max-w-6xl items-center gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="hidden lg:block">
+                    <div className="rounded-[2rem] border border-white/60 bg-white/70 p-8 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
+                        <div className="mb-6 inline-flex rounded-2xl bg-sky-100 p-4 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                            <ShieldCheck size={34} />
+                        </div>
+
+                        <h1 className="text-4xl font-black leading-tight">
+                            UAPL Training Portal Access
+                        </h1>
+
+                        <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                            Create your student account request. Your access will remain inactive until reviewed and approved by the administrator.
+                        </p>
+
+                        <div className="mt-8 space-y-4">
+                            {[
+                                "Student-only registration",
+                                "Duplicate username and email protection",
+                                "Strong password validation",
+                                "Admin-controlled activation"
+                            ].map(item => (
+                                <div key={item} className="flex items-center gap-3 text-sm font-semibold">
+                                    <CheckCircle2 className="text-emerald-500" size={18} />
+                                    {item}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="rounded-[2rem] border border-white/60 bg-white/85 p-6 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/85 sm:p-8">
+                    <div className="mb-6">
+                        <div className="mb-4 inline-flex rounded-2xl bg-sky-100 p-3 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                            <UserPlus size={26} />
+                        </div>
+
+                        <h2 className="text-3xl font-black">Create Account</h2>
+                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                            Submit your access request for approval.
+                        </p>
+                    </div>
+
+                    {status && (
+                        <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                            status.type === "success"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                                : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200"
+                        }`}>
+                            {status.message}
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <input
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                            placeholder="Full name"
+                            value={form.name}
+                            onChange={event => updateForm("name", event.target.value)}
+                            required
+                        />
+
+                        <input
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                            placeholder="Preferred username"
+                            value={form.username}
+                            onChange={event => updateForm("username", event.target.value)}
+                            required
+                        />
+
+                        <input
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                            type="email"
+                            placeholder="Email address"
+                            value={form.email}
+                            onChange={event => updateForm("email", event.target.value)}
+                            required
+                        />
+
+                        <input
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                            type="password"
+                            placeholder="Password"
+                            value={form.password}
+                            onChange={event => updateForm("password", event.target.value)}
+                            required
+                        />
+
+                        <input
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                            type="password"
+                            placeholder="Confirm password"
+                            value={form.confirmPassword}
+                            onChange={event => updateForm("confirmPassword", event.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                        {passwordChecks.map(item => (
+                            <div key={item.label} className={`flex items-center gap-2 text-xs font-semibold ${
+                                item.passed ? "text-emerald-600" : "text-slate-400"
+                            }`}>
+                                <CheckCircle2 size={14} />
+                                {item.label}
+                            </div>
+                        ))}
+                    </div>
+
+                    <button
+                        disabled={submitting || !canSubmit}
+                        className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <Lock size={18} />
+                        {submitting ? "Submitting Request..." : "Submit Registration"}
+                    </button>
+
+                    <div className="mt-6 flex flex-col gap-2 text-center text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-center">
+                        <span>Already have an account?</span>
+                        <Link to="/login" className="font-bold text-sky-600 hover:text-sky-700">
+                            Sign in
+                        </Link>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
