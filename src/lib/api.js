@@ -25,7 +25,7 @@ export const api = {
     saveFlashcards: flashcards => request("saveFlashcards", { flashcards }),
     saveCourseNotes: courseNotes => request("saveCourseNotes", { courseNotes }),
     submitQuizResult: result => request("submitQuizResult", result),
-    sendLoginEmail: userId => request("sendLoginEmail", { userId })
+    sendLoginEmail: userId => request("sendLoginEmail", { userId }),
     registerUser: data => request("registerUser", data),
-requestPasswordReset: identity => request("requestPasswordReset", { identity })
+    requestPasswordReset: identity => request("requestPasswordReset", { identity })
 };
