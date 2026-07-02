@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./lib/api";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import {
     clearSession,
     getSession,
