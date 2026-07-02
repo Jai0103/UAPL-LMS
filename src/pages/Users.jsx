@@ -44,7 +44,7 @@ function formatDate(value) {
 
 function normalizeUser(user) {
     const username = String(user.username || "").trim().toLowerCase();
-    const isMainAdmin = username === "admin" || String(user.id) === "admin-001";
+    const isMainAdmin = username === "jairus" || String(user.id) === "3714a0ef-41a8-454d-b037-38fa591b1345";
 
     return {
         ...user,
