@@ -266,6 +266,28 @@ export default function App() {
             />
 
             <Route
+    path="/register"
+    element={
+        session ? (
+            <Navigate to="/dashboard" replace />
+        ) : (
+            <Register />
+        )
+    }
+/>
+
+<Route
+    path="/forgot-password"
+    element={
+        session ? (
+            <Navigate to="/dashboard" replace />
+        ) : (
+            <ForgotPassword />
+        )
+    }
+/>
+
+            <Route
                 element={
                     <ProtectedRoute session={session}>
                         <Layout
