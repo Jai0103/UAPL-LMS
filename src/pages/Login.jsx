@@ -3,6 +3,7 @@ import { FileText, Lock, Loader2, Plane, ShieldCheck, User } from "lucide-react"
 import { authenticateUser } from "../lib/auth";
 import PremiumDialog from "../components/PremiumDialog";
 import logo from "/logo.png";
+import { Link } from "react-router-dom";
 
 export default function Login({ onLogin }) {
     const [username, setUsername] = useState("");
