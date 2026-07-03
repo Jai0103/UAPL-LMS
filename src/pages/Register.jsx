@@ -151,7 +151,37 @@ export default function Register() {
     }
 
     return (
-       
+        <div className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950 dark:bg-slate-950 dark:text-white">
+            <div className="mx-auto grid min-h-[calc(100vh-64px)] max-w-6xl items-center gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="hidden lg:block">
+                    <div className="rounded-[2rem] border border-white/60 bg-white/70 p-8 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
+                        <div className="mb-6 inline-flex rounded-2xl bg-sky-100 p-4 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                            <ShieldCheck size={34} />
+                        </div>
+
+                        <h1 className="text-4xl font-black leading-tight">
+                            UAPL Training Portal Access
+                        </h1>
+
+                        <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                            Create your student account request. Your access remains inactive until reviewed and approved by the administrator.
+                        </p>
+
+                        <div className="mt-8 space-y-4">
+                            {[
+                                "Student-only registration",
+                                "Duplicate username and email protection",
+                                "Strong password validation",
+                                "Admin-controlled activation"
+                            ].map(item => (
+                                <div key={item} className="flex items-center gap-3 text-sm font-semibold">
+                                    <CheckCircle2 className="text-emerald-500" size={18} />
+                                    {item}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
 
                 <form
                     onSubmit={handleSubmit}
