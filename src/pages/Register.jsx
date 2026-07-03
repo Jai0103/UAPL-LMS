@@ -152,7 +152,7 @@ export default function Register() {
 
     return (
         <div className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950 dark:bg-slate-950 dark:text-white">
-            <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-xl items-center justify-center">
+            <div className="mx-auto grid min-h-[calc(100vh-64px)] max-w-6xl place-items-center gap-8">
                
 
                 <form
