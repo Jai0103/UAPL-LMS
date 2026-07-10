@@ -219,7 +219,58 @@ function PremiumDialog({ dialog, onClose }) {
     );
 }
 
-function ModuleStepper({ modules, activeIndex, completedModules, activeQuestionIndex }) {
+function ResumeAttemptDialog({ progress, onResume, onStartFresh }) {
+    if (!progress) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl border border-white/70 bg-white/95 p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95">
+                <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                        <PlayCircle className="h-6 w-6" />
+                    </div>
+
+                    <div>
+                        <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                            Resume incomplete quiz?
+                        </h2>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            We found an unfinished quiz attempt saved on this device.
+                            You can continue from where you stopped.
+                        </p>
+
+                        <p className="mt-3 rounded-2xl bg-slate-100 px-4 py-3 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                            Last saved: {formatSavedAt(progress.savedAt)}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    <button
+                        type="button"
+                        onClick={onStartFresh}
+                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    >
+                        <RotateCcw className="h-4 w-4" />
+                        Start Fresh
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={onResume}
+                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white shadow-lg transition hover:bg-sky-700"
+                    >
+                        Resume Quiz
+                        <ArrowRight className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function MobileModuleProgress({ modules, activeIndex, completedModules, activeQuestionIndex }) {
     const activeModule = modules[activeIndex];
     const activeTotal = activeModule?.questions?.length || 0;
     const activeProgress = activeTotal
@@ -227,35 +278,87 @@ function ModuleStepper({ modules, activeIndex, completedModules, activeQuestionI
         : 100;
 
     return (
-        <div className="rounded-3xl border border-white/70 bg-white/85 p-4 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 md:p-5">
-            <div className="md:hidden">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-xs font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
-                            Module {activeIndex + 1} of {modules.length}
-                        </p>
+        <div className="md:hidden">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-xs font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                        Module {activeIndex + 1} of {modules.length}
+                    </p>
 
-                        <h2 className="mt-1 break-words text-base font-black text-slate-950 dark:text-white">
-                            {activeModule?.category}
-                        </h2>
+                    <h2 className="mt-1 break-words text-base font-black text-slate-950 dark:text-white">
+                        {activeModule?.category}
+                    </h2>
 
-                        <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            Question {activeTotal ? activeQuestionIndex + 1 : 0} of {activeTotal}
-                        </p>
-                    </div>
-
-                    <span className="shrink-0 rounded-full bg-sky-100 px-3 py-1 text-xs font-black text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-                        {activeProgress}%
-                    </span>
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        Question {activeTotal ? activeQuestionIndex + 1 : 0} of {activeTotal}
+                    </p>
                 </div>
 
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                    <div
-                        className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
-                        style={{ width: `${activeProgress}%` }}
-                    />
-                </div>
+                <span className="shrink-0 rounded-full bg-sky-100 px-3 py-1 text-xs font-black text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                    {activeProgress}%
+                </span>
             </div>
+
+            <div className="mt-4 grid grid-cols-6 gap-2">
+                {modules.map((module, index) => {
+                    const completed = completedModules.includes(module.category);
+                    const active = index === activeIndex;
+                    const locked = index > activeIndex && !completed;
+
+                    return (
+                        <div key={module.category} className="flex flex-col items-center gap-1">
+                            <div
+                                className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-black transition ${
+                                    completed
+                                        ? "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                        : active
+                                            ? "border-sky-500 bg-sky-600 text-white shadow-lg shadow-sky-600/25"
+                                            : locked
+                                                ? "border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-800 dark:bg-slate-900"
+                                                : "border-slate-300 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                                }`}
+                                title={module.category}
+                            >
+                                {completed ? (
+                                    <CheckCircle2 className="h-4 w-4" />
+                                ) : locked ? (
+                                    <Lock className="h-3.5 w-3.5" />
+                                ) : (
+                                    index + 1
+                                )}
+                            </div>
+
+                            <span className={`h-1.5 w-full rounded-full ${
+                                completed
+                                    ? "bg-emerald-400"
+                                    : active
+                                        ? "bg-sky-500"
+                                        : "bg-slate-200 dark:bg-slate-800"
+                            }`} />
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
+                    style={{ width: `${activeProgress}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
+function ModuleStepper({ modules, activeIndex, completedModules, activeQuestionIndex }) {
+    return (
+        <div className="rounded-3xl border border-white/70 bg-white/85 p-4 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 md:p-5">
+            <MobileModuleProgress
+                modules={modules}
+                activeIndex={activeIndex}
+                completedModules={completedModules}
+                activeQuestionIndex={activeQuestionIndex}
+            />
 
             <div className="hidden md:block">
                 <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
@@ -458,6 +561,21 @@ export default function Quiz({ session }) {
         finalResult,
         session
     ]);
+
+    useEffect(() => {
+        if (!started || finalResult) return;
+
+        function handleBeforeUnload(event) {
+            event.preventDefault();
+            event.returnValue = "";
+        }
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, [started, finalResult]);
 
     const activeModule = modules[activeModuleIndex];
     const activeQuestion = activeModule?.questions?.[activeQuestionIndex];
@@ -898,7 +1016,7 @@ export default function Quiz({ session }) {
                                                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                                         }`}
                                     >
-                                        {category === "All" ? "All" : category}
+                                        {category}
                                         <span className={`ml-2 rounded-full px-2 py-0.5 ${
                                             active
                                                 ? "bg-white/20 text-white"
@@ -953,94 +1071,63 @@ export default function Quiz({ session }) {
 
     if (!started) {
         return (
-            <div className="space-y-6">
-                <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-                    <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
-                        UAPL Module Quiz
-                    </p>
+            <>
+                <ResumeAttemptDialog
+                    progress={savedProgress}
+                    onResume={resumeSavedAttempt}
+                    onStartFresh={discardSavedAttempt}
+                />
 
-                    <h1 className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
-                        Complete the 6 Modules in Order
-                    </h1>
+                <div className="space-y-6">
+                    <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+                        <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                            UAPL Module Quiz
+                        </p>
 
-                    <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                        Students must complete each module before moving to the next. Passing rate per module is {PASSING_RATE}%.
-                    </p>
-                </div>
+                        <h1 className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+                            Complete the 6 Modules in Order
+                        </h1>
 
-                {savedProgress && (
-                    <div className="rounded-3xl border border-sky-200 bg-sky-50 p-5 shadow-xl dark:border-sky-900 dark:bg-sky-950/30">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <p className="text-sm font-black uppercase tracking-wide text-sky-700 dark:text-sky-300">
-                                    Incomplete Attempt Found
-                                </p>
-
-                                <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
-                                    Resume your previous quiz?
-                                </h2>
-
-                                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                                    Last saved {formatSavedAt(savedProgress.savedAt)}.
-                                </p>
-                            </div>
-
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <button
-                                    type="button"
-                                    onClick={discardSavedAttempt}
-                                    className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-                                >
-                                    Start Fresh
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={resumeSavedAttempt}
-                                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white shadow-lg transition hover:bg-sky-700"
-                                >
-                                    Resume Quiz
-                                    <ArrowRight className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
+                        <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                            Students must complete each module before moving to the next. Passing rate per module is {PASSING_RATE}%.
+                        </p>
                     </div>
-                )}
 
-                <div className="grid gap-5 md:grid-cols-2">
-                    <button
-                        type="button"
-                        onClick={() => startQuiz("practice")}
-                        className="rounded-3xl border border-sky-200 bg-white/85 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800 dark:bg-slate-900/80"
-                    >
-                        <Target className="h-8 w-8 text-sky-600" />
+                    <div className="grid gap-5 md:grid-cols-2">
+                        <button
+                            type="button"
+                            onClick={() => startQuiz("practice")}
+                            className="rounded-3xl border border-sky-200 bg-white/85 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800 dark:bg-slate-900/80"
+                        >
+                            <Target className="h-8 w-8 text-sky-600" />
 
-                        <h2 className="mt-4 text-xl font-black text-slate-950 dark:text-white">
-                            Practice Mode
-                        </h2>
+                            <h2 className="mt-4 text-xl font-black text-slate-950 dark:text-white">
+                                Practice Mode
+                            </h2>
 
-                        <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                            Complete modules in order. Answers and explanations are shown after each question.
-                        </p>
-                    </button>
+                            <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                                Complete modules in order. Answers and explanations are shown after each question.
+                            </p>
+                        </button>
 
-                    <button
-                        type="button"
-                        onClick={() => startQuiz("mock")}
-                        className="rounded-3xl border border-emerald-200 bg-white/85 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800 dark:bg-slate-900/80"
-                    >
-                        <Shuffle className="h-8 w-8 text-emerald-600" />
+                        <button
+                            type="button"
+                            onClick={() => startQuiz("mock")}
+                            className="rounded-3xl border border-emerald-200 bg-white/85 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800 dark:bg-slate-900/80"
+                        >
+                            <Shuffle className="h-8 w-8 text-emerald-600" />
 
-                        <h2 className="mt-4 text-xl font-black text-slate-950 dark:text-white">
-                            Mock Exam Mode
-                        </h2>
+                            <h2 className="mt-4 text-xl font-black text-slate-950 dark:text-white">
+                                Mock Exam Mode
+                            </h2>
 
-                        <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                            Complete modules in order. Questions are randomized and answers are shown at the end.
-                        </p>
-                    </button>
+                            <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                                Complete modules in order. Questions are randomized and answers are shown at the end.
+                            </p>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     }
 
