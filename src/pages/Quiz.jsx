@@ -814,6 +814,39 @@ export default function Quiz({ session }) {
         }
     }
 
+function retakeFailedModules() {
+    if (!finalResult?.focusModules?.length) return;
+
+    const failedCategories = finalResult.focusModules.map(item => item.category);
+    const failedQuestions = sourceQuestions.filter(question =>
+        failedCategories.includes(normalizeCategory(question.category))
+    );
+
+    const nextModules = failedCategories.map(category => ({
+        category,
+        questions: failedQuestions.filter(question =>
+            normalizeCategory(question.category) === category
+        )
+    }));
+
+    clearSavedProgress(session);
+    setSavedProgress(null);
+
+    setModules(nextModules);
+    setMode(mode || "practice");
+    setStarted(true);
+    setActiveModuleIndex(0);
+    setActiveQuestionIndex(0);
+    setSelectedAnswer(null);
+    setAnswersById({});
+    setCompletedModules([]);
+    setFeedback(null);
+    setModuleSummary(null);
+    setFinalResult(null);
+    setShowReview(false);
+    setReviewFilter("All");
+}
+    
     function retakeQuiz() {
         startQuiz(mode || "practice");
     }
@@ -871,7 +904,16 @@ export default function Quiz({ session }) {
                                 <ClipboardCheck className="h-4 w-4" />
                                 {showReview ? "Hide Review" : "Review Mistakes"}
                             </button>
-
+                                {finalResult.focusModules.length > 0 && (
+    <button
+        type="button"
+        onClick={retakeFailedModules}
+        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 text-sm font-black text-white shadow-lg transition hover:bg-amber-600"
+    >
+        <Target className="h-4 w-4" />
+        Retake Failed Modules
+    </button>
+)}
                             <button
                                 type="button"
                                 onClick={retakeQuiz}
