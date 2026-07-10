@@ -158,3 +158,7 @@ export function restoreBackup(data) {
 export async function sendLoginEmail(userId) {
     return api.sendLoginEmail(userId);
 }
+
+export async function approveAndSendActivationEmail(userId) {
+    return api.approveAndSendActivationEmail(userId);
+}
