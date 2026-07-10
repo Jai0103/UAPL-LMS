@@ -16,6 +16,10 @@ import {
 } from "lucide-react";
 import { getQuestions, submitQuizResult } from "../lib/storage";
 import PremiumDialog from "../components/PremiumDialog";
+import {
+    buildCategoryBreakdown,
+    getStrongAndWeakCategories
+} from "../lib/categoryAnalysis";
 
 function shuffleArray(items) {
     return [...items].sort(() => Math.random() - 0.5);
