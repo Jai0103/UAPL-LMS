@@ -664,18 +664,33 @@ export default function Users() {
                     color: white;
                 }
 
-                .icon-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.4rem;
-                    border-radius: 0.85rem;
-                    padding: 0.55rem 0.75rem;
-                    font-size: 0.75rem;
-                    font-weight: 900;
-                    color: white;
-                    transition: 0.18s ease;
-                }
+                .premium-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.45rem;
+    height: 2.45rem;
+    border-radius: 0.95rem;
+    color: white;
+    box-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.premium-action-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+    box-shadow: 0 16px 28px rgba(15, 23, 42, 0.22);
+}
+
+.premium-action-btn:active {
+    transform: translateY(0);
+}
+
+.premium-action-btn:disabled {
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
             `}</style>
         </div>
     );
