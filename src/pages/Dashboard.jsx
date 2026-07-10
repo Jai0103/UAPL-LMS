@@ -3,6 +3,7 @@ import {
     BarChart3,
     BookOpen,
     Brain,
+    CalendarClock,
     ClipboardCheck,
     FileText,
     Loader2,
@@ -31,26 +32,60 @@ function isAdmin(session) {
     return String(session?.role || "").toLowerCase() === "admin";
 }
 
+function formatDisplayDate(value) {
+    if (!value) return "No expiry";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "No expiry";
+
+    return date.toLocaleDateString("en-SG", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+    });
+}
+
+function getRemainingDays(value) {
+    if (!value) return "No expiry limit";
+
+    const expiry = new Date(value);
+    if (Number.isNaN(expiry.getTime())) return "No expiry limit";
+
+    expiry.setHours(23, 59, 59, 999);
+
+    const today = new Date();
+    const diffMs = expiry.getTime() - today.getTime();
+    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (days < 0) return "Expired";
+    if (days === 0) return "Expires today";
+    if (days === 1) return "1 day remaining";
+
+    return `${days} days remaining`;
+}
+
 function StatCard({ icon: Icon, label, value, detail, color }) {
     return (
-        <div className="rounded-3xl border border-white/70 bg-white/85 p-5 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <p className="text-sm font-bold text-slate-500 dark:text-slate-400">
+        <div className="min-w-0 rounded-3xl border border-white/70 bg-white/85 p-5 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+            <div className="flex min-w-0 items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-500 dark:text-slate-400">
                         {label}
                     </p>
-                    <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+
+                    <h2 className="mt-2 break-words text-2xl font-black leading-tight text-slate-950 dark:text-white sm:text-3xl">
                         {value}
                     </h2>
+
                     {detail && (
-                        <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        <p className="mt-2 break-words text-xs font-semibold text-slate-500 dark:text-slate-400">
                             {detail}
                         </p>
                     )}
                 </div>
 
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${color}`}>
-                    <Icon className="h-6 w-6" />
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl sm:h-12 sm:w-12 ${color}`}>
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
             </div>
         </div>
@@ -97,7 +132,7 @@ function CategoryDistributionCard({ questions }) {
                     </p>
                 </div>
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
                     <BarChart3 className="h-6 w-6" />
                 </div>
             </div>
@@ -137,6 +172,7 @@ function StudentProgress({ session, quizResults }) {
     }, [quizResults, session]);
 
     const lastAttempt = myResults[myResults.length - 1];
+
     const bestScore = myResults.length
         ? Math.max(...myResults.map(result => Number(result.accuracy || 0)))
         : 0;
@@ -148,6 +184,9 @@ function StudentProgress({ session, quizResults }) {
           )
         : 0;
 
+    const expiryDate = formatDisplayDate(session?.expiryDate);
+    const expiryRemaining = getRemainingDays(session?.expiryDate);
+
     return (
         <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
             <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
@@ -158,7 +197,7 @@ function StudentProgress({ session, quizResults }) {
                 Welcome back, {session?.name || session?.username}
             </h1>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     icon={ClipboardCheck}
                     label="Last Quiz Score"
@@ -184,10 +223,10 @@ function StudentProgress({ session, quizResults }) {
                 />
 
                 <StatCard
-                    icon={FileText}
+                    icon={CalendarClock}
                     label="Access Expiry"
-                    value={session?.expiryDate || "No expiry"}
-                    detail="Account validity"
+                    value={expiryDate}
+                    detail={expiryRemaining}
                     color="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                 />
             </div>
