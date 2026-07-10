@@ -149,7 +149,7 @@ export default function Login({ onLogin }) {
                                 <div>
 <div className="inline-flex rounded-2xl bg-white/95 p-3 shadow-lg">
     <img
-        src="/UAPL-LMS/AGA_Logo_fullcolor_Horizontal.png"
+        src="/UAPL-LMS/logo.png"
         alt="Apollo Global Academy Logo"
         className="h-12 w-auto object-contain"
     />
@@ -183,7 +183,7 @@ export default function Login({ onLogin }) {
                             <div className="mx-auto max-w-md">
 <div className="flex items-center gap-3">
     <img
-        src="/UAPL-LMS/AGA_Logo_fullcolor_Horizontal.png"
+        src="/UAPL-LMS/logo.png"
         alt="Apollo Global Academy Logo"
         className="h-14 w-auto object-contain"
     />
