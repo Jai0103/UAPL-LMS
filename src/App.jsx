@@ -49,16 +49,26 @@ export default function App() {
         const savedSession = getSession();
 
         setTheme(savedTheme);
-        setSession(savedSession);
-
         document.documentElement.classList.toggle("dark", savedTheme === "dark");
 
-        // Show the app immediately, then sync quietly in the background.
-        setIsBooting(false);
+        if (savedSession?.sessionToken) {
+            setSession(savedSession);
 
-        syncFromCloud().catch(error => {
-            console.error("Background sync failed:", error);
-        });
+            syncFromCloud().catch(error => {
+                console.error("Background sync failed:", error);
+                const message = String(error?.message || "").toLowerCase();
+
+                if (message.includes("session") || message.includes("token")) {
+                    clearSession();
+                    setSession(null);
+                }
+            });
+        } else {
+            clearSession();
+            setSession(null);
+        }
+
+        setIsBooting(false);
     }, []);
 
     useEffect(() => {
@@ -135,10 +145,8 @@ export default function App() {
     }, [session]);
 
     function handleLogin(nextSession) {
-        // No full-screen loading after sign in.
         setSession(nextSession);
 
-        // Update questions/users/results quietly after dashboard opens.
         syncFromCloud().catch(error => {
             console.error("Background sync failed:", error);
         });
@@ -170,15 +178,30 @@ export default function App() {
         return today > expiry;
     }
 
+    function forceLogout(message) {
+        clearSession();
+        setSession(null);
+
+        window.alert(
+            message || "Your session is no longer active. Please sign in again."
+        );
+    }
+
     async function validateCurrentSession() {
         const currentSession = getSession();
 
-        if (!currentSession) return;
+        if (!currentSession?.sessionToken) {
+            forceLogout("Your secure session has expired. Please sign in again.");
+            return;
+        }
 
         try {
             const result = await api.getBootstrap();
 
-            if (!result.success) return;
+            if (!result.success) {
+                forceLogout(result.message || "Your session has expired. Please sign in again.");
+                return;
+            }
 
             const latestUser = result.users.find(user =>
                 String(user.id) === String(currentSession.id) ||
@@ -191,15 +214,18 @@ export default function App() {
                 isAccountExpired(latestUser);
 
             if (shouldLogout) {
-                clearSession();
-                setSession(null);
-
-                window.alert(
+                forceLogout(
                     "Your account access is no longer active. You have been signed out automatically."
                 );
             }
         } catch (error) {
             console.error("Session validation failed:", error);
+
+            const message = String(error?.message || "").toLowerCase();
+
+            if (message.includes("session") || message.includes("token")) {
+                forceLogout("Your secure session has expired. Please sign in again.");
+            }
         }
     }
 
