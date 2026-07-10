@@ -204,12 +204,8 @@ export default function Login({ onLogin }) {
                         <section className="hidden bg-gradient-to-br from-sky-700 via-blue-800 to-slate-950 p-10 text-white lg:block">
                             <div className="flex h-full flex-col justify-between">
                                 <div>
-<div className="inline-flex rounded-2xl bg-white/95 p-3 shadow-lg">
-    <img
-        src="/UAPL-LMS/logo.png"
-        alt="Apollo Global Academy Logo"
-        className="h-12 w-auto object-contain"
-    />
+<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+    <Plane className="h-7 w-7" />
 </div>
 
                                     <h1 className="mt-8 text-4xl font-black leading-tight">
@@ -221,28 +217,49 @@ export default function Login({ onLogin }) {
                                         flashcards, module progress, and course notes.
                                     </p>
                                 </div>
+                                <div className="grid gap-3">
+    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+        <div className="flex items-center gap-3">
+            <BookOpen className="h-5 w-5 text-sky-200" />
+            <p className="text-sm font-black">Learn.</p>
+        </div>
 
-                                <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
-                                    <div className="flex items-center gap-3">
-                                        <ShieldCheck className="h-5 w-5 text-emerald-300" />
-                                        <p className="text-sm font-black">Secure LMS Access</p>
-                                    </div>
+        <p className="mt-2 text-xs leading-6 text-sky-100">
+            Review structured UAPL training notes and aviation learning modules.
+        </p>
+    </div>
 
-                                    <p className="mt-2 text-xs leading-6 text-sky-100">
-                                        Account access is protected using server-side validation,
-                                        session tokens, and admin-controlled student expiry.
-                                    </p>
-                                </div>
-                            </div>
+    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+        <div className="flex items-center gap-3">
+            <ClipboardCheck className="h-5 w-5 text-emerald-300" />
+            <p className="text-sm font-black">Practice.</p>
+        </div>
+
+        <p className="mt-2 text-xs leading-6 text-sky-100">
+            Strengthen recall through quizzes, flashcards, and module-based revision.
+        </p>
+    </div>
+
+    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+        <div className="flex items-center gap-3">
+            <Award className="h-5 w-5 text-amber-300" />
+            <p className="text-sm font-black">Certify.</p>
+        </div>
+
+        <p className="mt-2 text-xs leading-6 text-sky-100">
+            Track readiness and focus on weak modules before assessment day.
+        </p>
+    </div>
+</div>
                         </section>
 
                         <section className="p-6 sm:p-8 lg:p-10">
                             <div className="mx-auto max-w-md">
-<div className="flex items-center gap-3">
+<div className="flex justify-center">
     <img
         src="/UAPL-LMS/logo.png"
         alt="Apollo Global Academy Logo"
-        className="h-14 w-auto object-contain"
+        className="h-16 w-auto object-contain"
     />
 </div>
 
@@ -330,7 +347,7 @@ export default function Login({ onLogin }) {
                                 </div>
 
 <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-    <span>Version 1.0 • Designed and built by Jairus</span>
+    <span>Version 2.0 Jairus Github Repositories</span>
     <span>•</span>
     <button
         type="button"
