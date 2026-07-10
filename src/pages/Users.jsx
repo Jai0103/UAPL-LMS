@@ -505,15 +505,15 @@ export default function Users() {
                                         </td>
 
                                         <td className="table-cell">
-                                           <div className="flex flex-wrap gap-2">
+                                          <div className="flex flex-wrap items-center gap-2">
     {!isAdmin && !isActive && (
         <button
             type="button"
             onClick={() => approveAndEmail(user)}
             disabled={saving || !user.email}
-            title="Approve and send activation email"
-            aria-label="Approve and send activation email"
-            className="icon-only-btn bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40"
+            title="Approve account and send activation email"
+            aria-label="Approve account and send activation email"
+            className="premium-action-btn bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-emerald-500/25 hover:from-emerald-400 hover:to-emerald-700 disabled:opacity-40"
         >
             <UserCheck size={17} />
         </button>
@@ -526,7 +526,7 @@ export default function Users() {
             disabled={saving}
             title="Extend access by 1 month"
             aria-label="Extend access by 1 month"
-            className="icon-only-btn bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40"
+            className="premium-action-btn bg-gradient-to-br from-cyan-500 to-sky-700 shadow-cyan-500/25 hover:from-cyan-400 hover:to-sky-700 disabled:opacity-40"
         >
             <CalendarPlus size={17} />
         </button>
@@ -539,7 +539,7 @@ export default function Users() {
             disabled={!canEmail || saving}
             title="Send activation email"
             aria-label="Send activation email"
-            className="icon-only-btn bg-sky-600 hover:bg-sky-700 disabled:opacity-40"
+            className="premium-action-btn bg-gradient-to-br from-blue-500 to-indigo-700 shadow-blue-500/25 hover:from-blue-400 hover:to-indigo-700 disabled:opacity-40"
         >
             <Mail size={17} />
         </button>
@@ -552,7 +552,7 @@ export default function Users() {
             disabled={saving}
             title="Delete user"
             aria-label="Delete user"
-            className="icon-only-btn bg-rose-600 hover:bg-rose-700 disabled:opacity-40"
+            className="premium-action-btn bg-gradient-to-br from-rose-500 to-red-700 shadow-rose-500/25 hover:from-rose-400 hover:to-red-700 disabled:opacity-40"
         >
             <Trash2 size={17} />
         </button>
