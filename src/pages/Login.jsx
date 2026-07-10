@@ -61,6 +61,57 @@ function PremiumMessage({ type, title, message, onClose }) {
     );
 }
 
+function DisclaimerModal({ open, onClose }) {
+    if (!open) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-3xl border border-white/70 bg-white/95 p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95">
+                <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                        <ShieldCheck className="h-6 w-6" />
+                    </div>
+
+                    <div>
+                        <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                            Disclaimer
+                        </h2>
+
+                        <div className="mt-3 space-y-3 text-justify text-sm leading-7 text-slate-600 dark:text-slate-300">
+                            <p>
+                                This project is an independent educational resource and is not affiliated with,
+                                endorsed by, or connected to the Civil Aviation Authority of Singapore (CAAS).
+                            </p>
+
+                            <p>
+                                The materials, questions, flashcards, and notes in this portal are provided for
+                                training, revision, and self-assessment purposes only. They should not be treated
+                                as official examination content, legal advice, or regulatory guidance.
+                            </p>
+
+                            <p>
+                                Users should always refer to the latest official CAAS publications, regulations,
+                                advisories, and approved training materials for authoritative requirements before
+                                conducting any unmanned aircraft activity.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-sky-700"
+                    >
+                        I Understand
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function Login({ onLogin }) {
     const [form, setForm] = useState({
         username: "",
@@ -70,6 +121,7 @@ export default function Login({ onLogin }) {
     const [showPassword, setShowPassword] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [message, setMessage] = useState(null);
+    const [showDisclaimer, setShowDisclaimer] = useState(false);
 
     function updateForm(field, value) {
         setForm(prev => ({
@@ -140,6 +192,11 @@ export default function Login({ onLogin }) {
                 message={message?.message}
                 onClose={() => setMessage(null)}
             />
+
+            <DisclaimerModal
+    open={showDisclaimer}
+    onClose={() => setShowDisclaimer(false)}
+/>
 
             <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_35%),linear-gradient(135deg,#f8fbff,#eef5fb)] px-4 py-8 text-slate-950 dark:bg-[radial-gradient(circle_at_top_left,#082f49,transparent_35%),linear-gradient(135deg,#020617,#0f172a)] dark:text-white">
                 <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center justify-center">
@@ -272,11 +329,17 @@ export default function Login({ onLogin }) {
                                     </Link>
                                 </div>
 
-                                <div className="mt-8 border-t border-slate-200 pt-5 text-center dark:border-slate-800">
-                                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                                        Version 1.0 • Designed and built by Jairus
-                                    </p>
-                                </div>
+<div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+    <span>Version 1.0 • Designed and built by Jairus</span>
+    <span>•</span>
+    <button
+        type="button"
+        onClick={() => setShowDisclaimer(true)}
+        className="text-sky-700 underline-offset-4 transition hover:text-sky-900 hover:underline dark:text-sky-300"
+    >
+        Disclaimer
+    </button>
+</div>
                             </div>
                         </section>
                     </div>
