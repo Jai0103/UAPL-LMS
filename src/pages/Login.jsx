@@ -353,7 +353,7 @@ export default function Login({ onLogin }) {
 
                                 <div className="mt-8 border-t border-slate-200 pt-5 text-center dark:border-slate-800">
                                     <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                        <span>Version 2.0 • Jairus Githug Repositories</span>
+                                        <span>Version 2.0 • Powered by: Jairus Github Repo </span>
                                         <span>•</span>
                                         <button
                                             type="button"
