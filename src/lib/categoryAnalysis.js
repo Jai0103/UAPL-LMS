@@ -8,10 +8,7 @@ export const TRAINING_CATEGORIES = [
 ];
 
 export function normalizeCategory(category) {
-    if (TRAINING_CATEGORIES.includes(category)) {
-        return category;
-    }
-
+    if (TRAINING_CATEGORIES.includes(category)) return category;
     return "General UAS Knowledge";
 }
 
