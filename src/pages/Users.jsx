@@ -505,35 +505,59 @@ export default function Users() {
                                         </td>
 
                                         <td className="table-cell">
-                                            <div className="flex flex-wrap gap-2">
-                                                {!isAdmin && !isActive && (
-                                                    <button type="button" onClick={() => approveAndEmail(user)} disabled={saving || !user.email} className="icon-btn bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40">
-                                                        <UserCheck size={15} />
-                                                        Approve + Email
-                                                    </button>
-                                                )}
+                                           <div className="flex flex-wrap gap-2">
+    {!isAdmin && !isActive && (
+        <button
+            type="button"
+            onClick={() => approveAndEmail(user)}
+            disabled={saving || !user.email}
+            title="Approve and send activation email"
+            aria-label="Approve and send activation email"
+            className="icon-only-btn bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40"
+        >
+            <UserCheck size={17} />
+        </button>
+    )}
 
-                                                {!isAdmin && (
-                                                    <button type="button" onClick={() => extendUser(user.id)} disabled={saving} className="icon-btn bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40">
-                                                        <CalendarPlus size={15} />
-                                                        +1 Month
-                                                    </button>
-                                                )}
+    {!isAdmin && (
+        <button
+            type="button"
+            onClick={() => extendUser(user.id)}
+            disabled={saving}
+            title="Extend access by 1 month"
+            aria-label="Extend access by 1 month"
+            className="icon-only-btn bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40"
+        >
+            <CalendarPlus size={17} />
+        </button>
+    )}
 
-                                                {!isAdmin && isActive && (
-                                                    <button type="button" onClick={() => setEmailTarget(user)} disabled={!canEmail || saving} className="icon-btn bg-sky-600 hover:bg-sky-700 disabled:opacity-40">
-                                                        <Mail size={15} />
-                                                        Send Activation
-                                                    </button>
-                                                )}
+    {!isAdmin && isActive && (
+        <button
+            type="button"
+            onClick={() => setEmailTarget(user)}
+            disabled={!canEmail || saving}
+            title="Send activation email"
+            aria-label="Send activation email"
+            className="icon-only-btn bg-sky-600 hover:bg-sky-700 disabled:opacity-40"
+        >
+            <Mail size={17} />
+        </button>
+    )}
 
-                                                {!isAdmin && (
-                                                    <button type="button" onClick={() => deleteUser(user.id)} disabled={saving} className="icon-btn bg-rose-600 hover:bg-rose-700 disabled:opacity-40">
-                                                        <Trash2 size={15} />
-                                                        Delete
-                                                    </button>
-                                                )}
-                                            </div>
+    {!isAdmin && (
+        <button
+            type="button"
+            onClick={() => deleteUser(user.id)}
+            disabled={saving}
+            title="Delete user"
+            aria-label="Delete user"
+            className="icon-only-btn bg-rose-600 hover:bg-rose-700 disabled:opacity-40"
+        >
+            <Trash2 size={17} />
+        </button>
+    )}
+</div>
                                         </td>
                                     </tr>
                                 );
