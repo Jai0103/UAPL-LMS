@@ -437,7 +437,9 @@ export default function Users() {
                                 <th className="table-head">Status</th>
                                 <th className="table-head">Expiry</th>
                                 <th className="table-head">Last Login</th>
-                                <th className="table-head">Actions</th>
+                                <th className="w-[170px] min-w-[170px] px-4 py-3 text-right">
+    Actions
+</th>
                             </tr>
                         </thead>
 
@@ -504,61 +506,45 @@ export default function Users() {
                                             {formatDate(user.lastLogin)}
                                         </td>
 
-                                        <td className="table-cell">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                {!isAdmin && !isActive && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => approveAndEmail(user)}
-                                                        disabled={saving || !user.email}
-                                                        title="Approve account and send activation email"
-                                                        aria-label="Approve account and send activation email"
-                                                        className="premium-action-btn bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-emerald-500/25 hover:from-emerald-400 hover:to-emerald-700 disabled:opacity-40"
-                                                    >
-                                                        <UserCheck size={17} />
-                                                    </button>
-                                                )}
+                                       <td className="w-[170px] min-w-[170px] px-4 py-3">
+    <div className="flex flex-nowrap items-center justify-end gap-2 whitespace-nowrap">
+        <button
+            type="button"
+            onClick={() => approveAndEmail(user)}
+            className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100 hover:shadow-md"
+            title="Approve and send email"
+        >
+            <UserCheck size={17} />
+        </button>
 
-                                                {!isAdmin && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => extendUser(user.id)}
-                                                        disabled={saving}
-                                                        title="Extend access by 1 month"
-                                                        aria-label="Extend access by 1 month"
-                                                        className="premium-action-btn bg-gradient-to-br from-cyan-500 to-sky-700 shadow-cyan-500/25 hover:from-cyan-400 hover:to-sky-700 disabled:opacity-40"
-                                                    >
-                                                        <CalendarPlus size={17} />
-                                                    </button>
-                                                )}
+        <button
+            type="button"
+            onClick={() => extendUser(user.id)}
+            className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-700 shadow-sm transition hover:bg-sky-100 hover:shadow-md"
+            title="Extend access by 1 month"
+        >
+            <CalendarPlus size={17} />
+        </button>
 
-                                                {!isAdmin && isActive && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEmailTarget(user)}
-                                                        disabled={!canEmail || saving}
-                                                        title="Send activation email"
-                                                        aria-label="Send activation email"
-                                                        className="premium-action-btn bg-gradient-to-br from-blue-500 to-indigo-700 shadow-blue-500/25 hover:from-blue-400 hover:to-indigo-700 disabled:opacity-40"
-                                                    >
-                                                        <Mail size={17} />
-                                                    </button>
-                                                )}
+        <button
+            type="button"
+            onClick={() => confirmSendActivationEmail(user)}
+            className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:bg-indigo-100 hover:shadow-md"
+            title="Send login email"
+        >
+            <Mail size={17} />
+        </button>
 
-                                                {!isAdmin && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => deleteUser(user.id)}
-                                                        disabled={saving}
-                                                        title="Delete user"
-                                                        aria-label="Delete user"
-                                                        className="premium-action-btn bg-gradient-to-br from-rose-500 to-red-700 shadow-rose-500/25 hover:from-rose-400 hover:to-red-700 disabled:opacity-40"
-                                                    >
-                                                        <Trash2 size={17} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
+        <button
+            type="button"
+            onClick={() => deleteUser(user.id)}
+            className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 shadow-sm transition hover:bg-rose-100 hover:shadow-md"
+            title="Delete user"
+        >
+            <Trash2 size={17} />
+        </button>
+    </div>
+</td>
                                     </tr>
                                 );
                             })}
