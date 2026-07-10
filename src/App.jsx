@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./lib/api";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
 import {
     clearSession,
     getSession,
@@ -14,6 +12,8 @@ import {
 
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Quiz from "./pages/Quiz";
 import Flashcards from "./pages/Flashcards";
@@ -40,33 +40,25 @@ export default function App() {
     const [session, setSession] = useState(null);
     const [theme, setTheme] = useState("light");
     const [isBooting, setIsBooting] = useState(true);
-    const [bootMessage, setBootMessage] = useState("Preparing dashboard...");
+    const [bootMessage] = useState("Preparing dashboard...");
 
     useEffect(() => {
-        async function bootApp() {
-            setBootMessage("Preparing dashboard...");
+        initStorage();
 
-            initStorage();
+        const savedTheme = getTheme();
+        const savedSession = getSession();
 
-            const savedTheme = getTheme();
-            const savedSession = getSession();
+        setTheme(savedTheme);
+        setSession(savedSession);
 
-            setTheme(savedTheme);
-            setSession(savedSession);
+        document.documentElement.classList.toggle("dark", savedTheme === "dark");
 
-            document.documentElement.classList.toggle("dark", savedTheme === "dark");
+        // Show the app immediately, then sync quietly in the background.
+        setIsBooting(false);
 
-            try {
-                setBootMessage("Syncing with training database...");
-                await syncFromCloud();
-            } catch (error) {
-                console.error("Cloud sync failed:", error);
-            } finally {
-                setIsBooting(false);
-            }
-        }
-
-        bootApp();
+        syncFromCloud().catch(error => {
+            console.error("Background sync failed:", error);
+        });
     }, []);
 
     useEffect(() => {
@@ -142,20 +134,14 @@ export default function App() {
         };
     }, [session]);
 
-    async function handleLogin(nextSession) {
+    function handleLogin(nextSession) {
+        // No full-screen loading after sign in.
         setSession(nextSession);
-        setIsBooting(true);
-        setBootMessage("Preparing dashboard...");
 
-        try {
-            setBootMessage("Syncing with training database...");
-            await syncFromCloud();
-            await validateCurrentSession();
-        } catch (error) {
-            console.error("Cloud sync failed:", error);
-        } finally {
-            setIsBooting(false);
-        }
+        // Update questions/users/results quietly after dashboard opens.
+        syncFromCloud().catch(error => {
+            console.error("Background sync failed:", error);
+        });
     }
 
     function handleLogout() {
@@ -232,10 +218,6 @@ export default function App() {
                     <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
                         {bootMessage}
                     </p>
-
-                    <div className="mt-6 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                        <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-sky-500 to-emerald-400" />
-                    </div>
                 </div>
             </div>
         );
@@ -255,6 +237,28 @@ export default function App() {
             />
 
             <Route
+                path="/register"
+                element={
+                    session ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <Register />
+                    )
+                }
+            />
+
+            <Route
+                path="/forgot-password"
+                element={
+                    session ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <ForgotPassword />
+                    )
+                }
+            />
+
+            <Route
                 path="/"
                 element={
                     session ? (
@@ -264,28 +268,6 @@ export default function App() {
                     )
                 }
             />
-
-            <Route
-    path="/register"
-    element={
-        session ? (
-            <Navigate to="/dashboard" replace />
-        ) : (
-            <Register />
-        )
-    }
-/>
-
-<Route
-    path="/forgot-password"
-    element={
-        session ? (
-            <Navigate to="/dashboard" replace />
-        ) : (
-            <ForgotPassword />
-        )
-    }
-/>
 
             <Route
                 element={
