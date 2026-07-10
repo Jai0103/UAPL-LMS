@@ -197,9 +197,9 @@ export default function Login({ onLogin }) {
             />
 
             <DisclaimerModal
-    open={showDisclaimer}
-    onClose={() => setShowDisclaimer(false)}
-/>
+                open={showDisclaimer}
+                onClose={() => setShowDisclaimer(false)}
+            />
 
             <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_35%),linear-gradient(135deg,#f8fbff,#eef5fb)] px-4 py-8 text-slate-950 dark:bg-[radial-gradient(circle_at_top_left,#082f49,transparent_35%),linear-gradient(135deg,#020617,#0f172a)] dark:text-white">
                 <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center justify-center">
@@ -207,9 +207,9 @@ export default function Login({ onLogin }) {
                         <section className="hidden bg-gradient-to-br from-sky-700 via-blue-800 to-slate-950 p-10 text-white lg:block">
                             <div className="flex h-full flex-col justify-between">
                                 <div>
-<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-    <Plane className="h-7 w-7" />
-</div>
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+                                        <Plane className="h-7 w-7" />
+                                    </div>
 
                                     <h1 className="mt-8 text-4xl font-black leading-tight">
                                         UAPL Training Portal
@@ -220,57 +220,59 @@ export default function Login({ onLogin }) {
                                         flashcards, module progress, and course notes.
                                     </p>
                                 </div>
+
                                 <div className="grid gap-3">
-    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
-        <div className="flex items-center gap-3">
-            <BookOpen className="h-5 w-5 text-sky-200" />
-            <p className="text-sm font-black">Learn.</p>
-        </div>
+                                    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+                                        <div className="flex items-center gap-3">
+                                            <BookOpen className="h-5 w-5 text-sky-200" />
+                                            <p className="text-sm font-black">Learn.</p>
+                                        </div>
 
-        <p className="mt-2 text-xs leading-6 text-sky-100">
-            Review structured UAPL training notes and aviation learning modules.
-        </p>
-    </div>
+                                        <p className="mt-2 text-xs leading-6 text-sky-100">
+                                            Review structured UAPL training notes and aviation learning modules.
+                                        </p>
+                                    </div>
 
-    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
-        <div className="flex items-center gap-3">
-            <ClipboardCheck className="h-5 w-5 text-emerald-300" />
-            <p className="text-sm font-black">Practice.</p>
-        </div>
+                                    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+                                        <div className="flex items-center gap-3">
+                                            <ClipboardCheck className="h-5 w-5 text-emerald-300" />
+                                            <p className="text-sm font-black">Practice.</p>
+                                        </div>
 
-        <p className="mt-2 text-xs leading-6 text-sky-100">
-            Strengthen recall through quizzes, flashcards, and module-based revision.
-        </p>
-    </div>
+                                        <p className="mt-2 text-xs leading-6 text-sky-100">
+                                            Strengthen recall through quizzes, flashcards, and module-based revision.
+                                        </p>
+                                    </div>
 
-    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
-        <div className="flex items-center gap-3">
-            <Award className="h-5 w-5 text-amber-300" />
-            <p className="text-sm font-black">Certify.</p>
-        </div>
+                                    <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+                                        <div className="flex items-center gap-3">
+                                            <Award className="h-5 w-5 text-amber-300" />
+                                            <p className="text-sm font-black">Certify.</p>
+                                        </div>
 
-        <p className="mt-2 text-xs leading-6 text-sky-100">
-            Track readiness and focus on weak modules before assessment day.
-        </p>
-    </div>
-</div>
+                                        <p className="mt-2 text-xs leading-6 text-sky-100">
+                                            Track readiness and focus on weak modules before assessment day.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </section>
 
                         <section className="p-6 sm:p-8 lg:p-10">
                             <div className="mx-auto max-w-md">
-<div className="flex justify-center">
-    <img
-        src="/UAPL-LMS/logo.png"
-        alt="Apollo Global Academy Logo"
-        className="h-16 w-auto object-contain"
-    />
-</div>
+                                <div className="flex justify-center">
+                                    <img
+                                        src="/UAPL-LMS/logo.png"
+                                        alt="Apollo Global Academy Logo"
+                                        className="h-16 w-auto object-contain"
+                                    />
+                                </div>
 
-                                <h2 className="mt-6 text-3xl font-black text-slate-950 dark:text-white">
+                                <h2 className="mt-6 text-center text-3xl font-black text-slate-950 dark:text-white">
                                     Sign in
                                 </h2>
 
-                                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500 dark:text-slate-400">
+                                <p className="mt-2 text-center text-sm font-semibold leading-6 text-slate-500 dark:text-slate-400">
                                     Enter your credentials to continue to your UAPL dashboard.
                                 </p>
 
@@ -349,17 +351,19 @@ export default function Login({ onLogin }) {
                                     </Link>
                                 </div>
 
-<div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-    <span>Version 2.0 Jairus Github Repositories</span>
-    <span>•</span>
-    <button
-        type="button"
-        onClick={() => setShowDisclaimer(true)}
-        className="text-sky-700 underline-offset-4 transition hover:text-sky-900 hover:underline dark:text-sky-300"
-    >
-        Disclaimer
-    </button>
-</div>
+                                <div className="mt-8 border-t border-slate-200 pt-5 text-center dark:border-slate-800">
+                                    <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                                        <span>Version 2.0 • Jairus Githug Repositories</span>
+                                        <span>•</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDisclaimer(true)}
+                                            className="text-sky-700 underline-offset-4 transition hover:text-sky-900 hover:underline dark:text-sky-300"
+                                        >
+                                            Disclaimer
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </section>
                     </div>
