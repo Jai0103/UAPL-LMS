@@ -22,6 +22,30 @@ import {
 } from "../lib/categoryAnalysis";
 
 const PASSING_RATE = 75;
+const QUIZ_PROGRESS_VERSION = 2;
+
+function getProgressKey(session) {
+    return `uapl_module_quiz_progress_v2_${session?.id || session?.username || "guest"}`;
+}
+
+function readSavedProgress(session) {
+    try {
+        const saved = localStorage.getItem(getProgressKey(session));
+        if (!saved) return null;
+
+        const parsed = JSON.parse(saved);
+        if (parsed.version !== QUIZ_PROGRESS_VERSION) return null;
+        if (!parsed.started) return null;
+
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+function clearSavedProgress(session) {
+    localStorage.removeItem(getProgressKey(session));
+}
 
 function shuffleArray(items) {
     return [...items].sort(() => Math.random() - 0.5);
@@ -59,6 +83,42 @@ function buildModules(questions, mode) {
             questions: moduleQuestions
         };
     });
+}
+
+function buildModulesFromProgress(questions, progress) {
+    const questionById = new Map(
+        questions.map(question => [String(question.id), question])
+    );
+
+    return TRAINING_CATEGORIES.map(category => {
+        const savedIds = progress.moduleQuestionIds?.[category] || [];
+
+        const orderedQuestions = savedIds
+            .map(id => questionById.get(String(id)))
+            .filter(question => question && normalizeCategory(question.category) === category);
+
+        const orderedIds = new Set(orderedQuestions.map(question => String(question.id)));
+
+        const newQuestions = questions.filter(question => {
+            return normalizeCategory(question.category) === category &&
+                !orderedIds.has(String(question.id));
+        });
+
+        return {
+            category,
+            questions: [...orderedQuestions, ...newQuestions]
+        };
+    });
+}
+
+function getModuleQuestionIds(modules) {
+    const map = {};
+
+    modules.forEach(module => {
+        map[module.category] = module.questions.map(question => question.id);
+    });
+
+    return map;
 }
 
 function getAnswerLabel(index) {
@@ -109,6 +169,21 @@ function calculateFinalResult(modules, answersById) {
     };
 }
 
+function formatSavedAt(value) {
+    if (!value) return "recently";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "recently";
+
+    return date.toLocaleString("en-SG", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
 function PremiumDialog({ dialog, onClose }) {
     if (!dialog) return null;
 
@@ -144,56 +219,95 @@ function PremiumDialog({ dialog, onClose }) {
     );
 }
 
-function ModuleStepper({ modules, activeIndex, completedModules }) {
+function ModuleStepper({ modules, activeIndex, completedModules, activeQuestionIndex }) {
+    const activeModule = modules[activeIndex];
+    const activeTotal = activeModule?.questions?.length || 0;
+    const activeProgress = activeTotal
+        ? Math.round(((activeQuestionIndex + 1) / activeTotal) * 100)
+        : 100;
+
     return (
-        <div className="rounded-3xl border border-white/70 bg-white/85 p-5 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-            <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
-                Module Progress
-            </p>
+        <div className="rounded-3xl border border-white/70 bg-white/85 p-4 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 md:p-5">
+            <div className="md:hidden">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-xs font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                            Module {activeIndex + 1} of {modules.length}
+                        </p>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {modules.map((module, index) => {
-                    const completed = completedModules.includes(module.category);
-                    const active = index === activeIndex;
-                    const locked = index > activeIndex && !completed;
+                        <h2 className="mt-1 break-words text-base font-black text-slate-950 dark:text-white">
+                            {activeModule?.category}
+                        </h2>
 
-                    return (
-                        <div
-                            key={module.category}
-                            className={`rounded-2xl border p-4 transition ${
-                                active
-                                    ? "border-sky-300 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/40"
-                                    : completed
-                                        ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"
-                                        : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
-                            }`}
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        Module {index + 1}
-                                    </p>
-                                    <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">
-                                        {module.category}
-                                    </p>
-                                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                        {module.questions.length} questions
-                                    </p>
-                                </div>
+                        <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            Question {activeTotal ? activeQuestionIndex + 1 : 0} of {activeTotal}
+                        </p>
+                    </div>
 
-                                <div className="shrink-0">
-                                    {completed ? (
-                                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                                    ) : locked ? (
-                                        <Lock className="h-5 w-5 text-slate-400" />
-                                    ) : (
-                                        <PlayCircle className="h-5 w-5 text-sky-600" />
-                                    )}
+                    <span className="shrink-0 rounded-full bg-sky-100 px-3 py-1 text-xs font-black text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                        {activeProgress}%
+                    </span>
+                </div>
+
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                    <div
+                        className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
+                        style={{ width: `${activeProgress}%` }}
+                    />
+                </div>
+            </div>
+
+            <div className="hidden md:block">
+                <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                    Module Progress
+                </p>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {modules.map((module, index) => {
+                        const completed = completedModules.includes(module.category);
+                        const active = index === activeIndex;
+                        const locked = index > activeIndex && !completed;
+
+                        return (
+                            <div
+                                key={module.category}
+                                className={`rounded-2xl border p-4 transition ${
+                                    active
+                                        ? "border-sky-300 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/40"
+                                        : completed
+                                            ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"
+                                            : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+                                }`}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                            Module {index + 1}
+                                        </p>
+
+                                        <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">
+                                            {module.category}
+                                        </p>
+
+                                        <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                            {module.questions.length} questions
+                                        </p>
+                                    </div>
+
+                                    <div className="shrink-0">
+                                        {completed ? (
+                                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                                        ) : locked ? (
+                                            <Lock className="h-5 w-5 text-slate-400" />
+                                        ) : (
+                                            <PlayCircle className="h-5 w-5 text-sky-600" />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
@@ -203,69 +317,67 @@ function ModuleResultCard({ summary, onNextModule }) {
     const hasQuestions = summary.total > 0;
 
     return (
-        <div className="space-y-6">
-            <div className="rounded-3xl border border-white/70 bg-white/85 p-6 text-center shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-                <div
-                    className={`mx-auto flex h-16 w-16 items-center justify-center rounded-3xl ${
-                        !hasQuestions
-                            ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                            : summary.passed
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                                : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                    }`}
-                >
-                    {summary.passed ? (
-                        <CheckCircle2 className="h-8 w-8" />
-                    ) : (
-                        <AlertTriangle className="h-8 w-8" />
-                    )}
-                </div>
-
-                <p className="mt-5 text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
-                    Module Completed
-                </p>
-
-                <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-                    {summary.category}
-                </h1>
-
-                {hasQuestions ? (
-                    <>
-                        <p className="mt-3 text-4xl font-black text-slate-950 dark:text-white">
-                            {summary.accuracy}%
-                        </p>
-
-                        <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                            {summary.correct} correct out of {summary.total}. Passing rate is {PASSING_RATE}%.
-                        </p>
-
-                        <div
-                            className={`mt-5 rounded-2xl border p-4 text-sm font-bold ${
-                                summary.passed
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
-                                    : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-                            }`}
-                        >
-                            {summary.passed
-                                ? "Good work. You passed this module."
-                                : "This module needs more focus. Continue the quiz, then review it in your final report."}
-                        </div>
-                    </>
+        <div className="rounded-3xl border border-white/70 bg-white/85 p-6 text-center shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+            <div
+                className={`mx-auto flex h-16 w-16 items-center justify-center rounded-3xl ${
+                    !hasQuestions
+                        ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                        : summary.passed
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                }`}
+            >
+                {summary.passed ? (
+                    <CheckCircle2 className="h-8 w-8" />
                 ) : (
-                    <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                        No questions are currently assigned to this module.
-                    </p>
+                    <AlertTriangle className="h-8 w-8" />
                 )}
-
-                <button
-                    type="button"
-                    onClick={onNextModule}
-                    className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-6 text-sm font-black text-white shadow-lg transition hover:bg-sky-700"
-                >
-                    Continue to Next Module
-                    <ArrowRight className="h-4 w-4" />
-                </button>
             </div>
+
+            <p className="mt-5 text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                Module Completed
+            </p>
+
+            <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+                {summary.category}
+            </h1>
+
+            {hasQuestions ? (
+                <>
+                    <p className="mt-3 text-4xl font-black text-slate-950 dark:text-white">
+                        {summary.accuracy}%
+                    </p>
+
+                    <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        {summary.correct} correct out of {summary.total}. Passing rate is {PASSING_RATE}%.
+                    </p>
+
+                    <div
+                        className={`mt-5 rounded-2xl border p-4 text-sm font-bold ${
+                            summary.passed
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+                                : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                        }`}
+                    >
+                        {summary.passed
+                            ? "Good work. You passed this module."
+                            : "This module needs more focus. Continue the quiz, then review it in your final report."}
+                    </div>
+                </>
+            ) : (
+                <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    No questions are currently assigned to this module.
+                </p>
+            )}
+
+            <button
+                type="button"
+                onClick={onNextModule}
+                className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-6 text-sm font-black text-white shadow-lg transition hover:bg-sky-700"
+            >
+                Continue to Next Module
+                <ArrowRight className="h-4 w-4" />
+            </button>
         </div>
     );
 }
@@ -276,6 +388,7 @@ export default function Quiz({ session }) {
     const [mode, setMode] = useState("");
     const [loading, setLoading] = useState(true);
     const [started, setStarted] = useState(false);
+    const [savedProgress, setSavedProgress] = useState(null);
 
     const [activeModuleIndex, setActiveModuleIndex] = useState(0);
     const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
@@ -287,6 +400,7 @@ export default function Quiz({ session }) {
 
     const [finalResult, setFinalResult] = useState(null);
     const [showReview, setShowReview] = useState(false);
+    const [reviewFilter, setReviewFilter] = useState("All");
     const [savingResult, setSavingResult] = useState(false);
     const [dialog, setDialog] = useState(null);
 
@@ -296,7 +410,10 @@ export default function Quiz({ session }) {
         async function loadQuestions() {
             try {
                 const data = await Promise.resolve(getQuestions());
-                setSourceQuestions(normalizeQuestions(data));
+                const normalized = normalizeQuestions(data);
+
+                setSourceQuestions(normalized);
+                setSavedProgress(readSavedProgress(session));
             } finally {
                 setLoading(false);
             }
@@ -307,28 +424,73 @@ export default function Quiz({ session }) {
         return () => {
             if (autoNextRef.current) clearTimeout(autoNextRef.current);
         };
-    }, []);
+    }, [session]);
+
+    useEffect(() => {
+        if (!started || !modules.length || finalResult) return;
+
+        const snapshot = {
+            version: QUIZ_PROGRESS_VERSION,
+            started: true,
+            mode,
+            activeModuleIndex,
+            activeQuestionIndex,
+            selectedAnswer,
+            answersById,
+            completedModules,
+            showModuleSummary: !!moduleSummary,
+            moduleQuestionIds: getModuleQuestionIds(modules),
+            savedAt: new Date().toISOString()
+        };
+
+        localStorage.setItem(getProgressKey(session), JSON.stringify(snapshot));
+        setSavedProgress(snapshot);
+    }, [
+        started,
+        modules,
+        mode,
+        activeModuleIndex,
+        activeQuestionIndex,
+        selectedAnswer,
+        answersById,
+        completedModules,
+        moduleSummary,
+        finalResult,
+        session
+    ]);
 
     const activeModule = modules[activeModuleIndex];
     const activeQuestion = activeModule?.questions?.[activeQuestionIndex];
 
-    const moduleProgress = useMemo(() => {
-        if (!activeModule?.questions?.length) return 100;
-        return Math.round(((activeQuestionIndex + 1) / activeModule.questions.length) * 100);
-    }, [activeModule, activeQuestionIndex]);
-
     const reviewItems = useMemo(() => {
         if (!finalResult) return [];
 
-        return modules.flatMap(module =>
-            module.questions.map(question => ({
-                module: module.category,
-                question,
-                selectedAnswer: finalResult.answersById[question.id],
-                isCorrect: finalResult.answersById[question.id] === question.answer
-            }))
-        ).filter(item => !item.isCorrect);
+        return modules
+            .flatMap(module =>
+                module.questions.map(question => ({
+                    module: module.category,
+                    question,
+                    selectedAnswer: finalResult.answersById[question.id],
+                    isCorrect: finalResult.answersById[question.id] === question.answer
+                }))
+            )
+            .filter(item => !item.isCorrect);
     }, [finalResult, modules]);
+
+    const reviewCounts = useMemo(() => {
+        const counts = { All: reviewItems.length };
+
+        TRAINING_CATEGORIES.forEach(category => {
+            counts[category] = reviewItems.filter(item => item.module === category).length;
+        });
+
+        return counts;
+    }, [reviewItems]);
+
+    const filteredReviewItems = useMemo(() => {
+        if (reviewFilter === "All") return reviewItems;
+        return reviewItems.filter(item => item.module === reviewFilter);
+    }, [reviewItems, reviewFilter]);
 
     function clearAutoNext() {
         if (autoNextRef.current) {
@@ -339,6 +501,9 @@ export default function Quiz({ session }) {
 
     function startQuiz(nextMode) {
         const nextModules = buildModules(sourceQuestions, nextMode);
+
+        clearSavedProgress(session);
+        setSavedProgress(null);
 
         setModules(nextModules);
         setMode(nextMode);
@@ -352,6 +517,57 @@ export default function Quiz({ session }) {
         setModuleSummary(null);
         setFinalResult(null);
         setShowReview(false);
+        setReviewFilter("All");
+    }
+
+    function resumeSavedAttempt() {
+        if (!savedProgress) return;
+
+        const restoredModules = buildModulesFromProgress(sourceQuestions, savedProgress);
+        const safeModuleIndex = Math.min(
+            Math.max(Number(savedProgress.activeModuleIndex || 0), 0),
+            restoredModules.length - 1
+        );
+
+        const restoredModule = restoredModules[safeModuleIndex];
+        const maxQuestionIndex = Math.max((restoredModule?.questions?.length || 1) - 1, 0);
+        const safeQuestionIndex = Math.min(
+            Math.max(Number(savedProgress.activeQuestionIndex || 0), 0),
+            maxQuestionIndex
+        );
+
+        const restoredAnswers = savedProgress.answersById || {};
+        const restoredQuestion = restoredModule?.questions?.[safeQuestionIndex];
+
+        setModules(restoredModules);
+        setMode(savedProgress.mode || "practice");
+        setStarted(true);
+        setActiveModuleIndex(safeModuleIndex);
+        setActiveQuestionIndex(safeQuestionIndex);
+        setAnswersById(restoredAnswers);
+        setCompletedModules(savedProgress.completedModules || []);
+        setSelectedAnswer(
+            savedProgress.selectedAnswer !== undefined && savedProgress.selectedAnswer !== null
+                ? savedProgress.selectedAnswer
+                : restoredQuestion
+                    ? restoredAnswers[restoredQuestion.id] ?? null
+                    : null
+        );
+        setFeedback(null);
+        setFinalResult(null);
+        setShowReview(false);
+        setReviewFilter("All");
+
+        if (savedProgress.showModuleSummary && restoredModule) {
+            setModuleSummary(calculateModuleSummary(restoredModule, restoredAnswers));
+        } else {
+            setModuleSummary(null);
+        }
+    }
+
+    function discardSavedAttempt() {
+        clearSavedProgress(session);
+        setSavedProgress(null);
     }
 
     function submitAnswer() {
@@ -439,7 +655,11 @@ export default function Quiz({ session }) {
 
         setActiveModuleIndex(nextModuleIndex);
         setActiveQuestionIndex(0);
-        setSelectedAnswer(nextModule?.questions?.[0] ? answersById[nextModule.questions[0].id] ?? null : null);
+        setSelectedAnswer(
+            nextModule?.questions?.[0]
+                ? answersById[nextModule.questions[0].id] ?? null
+                : null
+        );
         setFeedback(null);
         setModuleSummary(null);
     }
@@ -452,7 +672,11 @@ export default function Quiz({ session }) {
         setFinalResult(result);
         setStarted(false);
         setModuleSummary(null);
+        setReviewFilter("All");
         setSavingResult(true);
+
+        clearSavedProgress(session);
+        setSavedProgress(null);
 
         try {
             await Promise.resolve(
@@ -643,13 +867,53 @@ export default function Quiz({ session }) {
 
                 {showReview && (
                     <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-                        <h2 className="text-xl font-black text-slate-950 dark:text-white">
-                            Mistake Review
-                        </h2>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-xl font-black text-slate-950 dark:text-white">
+                                    Mistake Review
+                                </h2>
+                                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                                    Filter your mistakes by module.
+                                </p>
+                            </div>
+
+                            <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                                {filteredReviewItems.length} shown
+                            </span>
+                        </div>
+
+                        <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
+                            {["All", ...TRAINING_CATEGORIES].map(category => {
+                                const active = reviewFilter === category;
+                                const count = reviewCounts[category] || 0;
+
+                                return (
+                                    <button
+                                        key={category}
+                                        type="button"
+                                        onClick={() => setReviewFilter(category)}
+                                        className={`shrink-0 rounded-2xl border px-4 py-2 text-xs font-black transition ${
+                                            active
+                                                ? "border-sky-500 bg-sky-600 text-white shadow-lg shadow-sky-600/20"
+                                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                                        }`}
+                                    >
+                                        {category === "All" ? "All" : category}
+                                        <span className={`ml-2 rounded-full px-2 py-0.5 ${
+                                            active
+                                                ? "bg-white/20 text-white"
+                                                : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                        }`}>
+                                            {count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
 
                         <div className="mt-4 space-y-4">
-                            {reviewItems.length ? (
-                                reviewItems.map((item, index) => (
+                            {filteredReviewItems.length ? (
+                                filteredReviewItems.map((item, index) => (
                                     <div
                                         key={`${item.question.id}-${index}`}
                                         className="rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/30"
@@ -677,7 +941,7 @@ export default function Quiz({ session }) {
                                 ))
                             ) : (
                                 <p className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                    No mistakes. Excellent work.
+                                    No mistakes in this filter.
                                 </p>
                             )}
                         </div>
@@ -703,6 +967,45 @@ export default function Quiz({ session }) {
                         Students must complete each module before moving to the next. Passing rate per module is {PASSING_RATE}%.
                     </p>
                 </div>
+
+                {savedProgress && (
+                    <div className="rounded-3xl border border-sky-200 bg-sky-50 p-5 shadow-xl dark:border-sky-900 dark:bg-sky-950/30">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <p className="text-sm font-black uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                                    Incomplete Attempt Found
+                                </p>
+
+                                <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
+                                    Resume your previous quiz?
+                                </h2>
+
+                                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                                    Last saved {formatSavedAt(savedProgress.savedAt)}.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <button
+                                    type="button"
+                                    onClick={discardSavedAttempt}
+                                    className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                                >
+                                    Start Fresh
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={resumeSavedAttempt}
+                                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white shadow-lg transition hover:bg-sky-700"
+                                >
+                                    Resume Quiz
+                                    <ArrowRight className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid gap-5 md:grid-cols-2">
                     <button
@@ -743,11 +1046,12 @@ export default function Quiz({ session }) {
 
     if (moduleSummary) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
                 <ModuleStepper
                     modules={modules}
                     activeIndex={activeModuleIndex}
                     completedModules={completedModules}
+                    activeQuestionIndex={activeQuestionIndex}
                 />
 
                 <ModuleResultCard
@@ -760,11 +1064,12 @@ export default function Quiz({ session }) {
 
     if (activeModule && !activeModule.questions.length) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
                 <ModuleStepper
                     modules={modules}
                     activeIndex={activeModuleIndex}
                     completedModules={completedModules}
+                    activeQuestionIndex={activeQuestionIndex}
                 />
 
                 <div className="rounded-3xl border border-white/70 bg-white/85 p-6 text-center shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
@@ -795,48 +1100,40 @@ export default function Quiz({ session }) {
         <>
             <PremiumDialog dialog={dialog} onClose={() => setDialog(null)} />
 
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
                 <ModuleStepper
                     modules={modules}
                     activeIndex={activeModuleIndex}
                     completedModules={completedModules}
+                    activeQuestionIndex={activeQuestionIndex}
                 />
 
-                <div className="rounded-3xl border border-white/70 bg-white/85 p-5 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <p className="text-sm font-black text-sky-600 dark:text-sky-300">
-                                Module {activeModuleIndex + 1} of {modules.length}
-                            </p>
+                <div className="rounded-3xl border border-white/70 bg-white/85 p-5 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 md:p-6">
+                    <div className="mb-4 hidden md:block">
+                        <p className="text-sm font-black text-sky-600 dark:text-sky-300">
+                            Module {activeModuleIndex + 1} of {modules.length}
+                        </p>
 
-                            <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
-                                {activeModule.category}
-                            </h2>
+                        <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
+                            {activeModule.category}
+                        </h2>
 
-                            <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                Question {activeQuestionIndex + 1} of {activeModule.questions.length} • {mode === "mock" ? "Mock Exam Mode" : "Practice Mode"}
-                            </p>
-                        </div>
-
-                        <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                            {moduleProgress}% Complete
-                        </span>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            Question {activeQuestionIndex + 1} of {activeModule.questions.length} • {mode === "mock" ? "Mock Exam Mode" : "Practice Mode"}
+                        </p>
                     </div>
 
-                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                        <div
-                            className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
-                            style={{ width: `${moduleProgress}%` }}
-                        />
+                    <div className="mb-4 md:hidden">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            {mode === "mock" ? "Mock Exam Mode" : "Practice Mode"}
+                        </p>
                     </div>
-                </div>
 
-                <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-                    <h1 className="text-xl font-black leading-8 text-slate-950 dark:text-white">
+                    <h1 className="text-lg font-black leading-7 text-slate-950 dark:text-white md:text-xl md:leading-8">
                         Q{activeQuestionIndex + 1}: {activeQuestion.question}
                     </h1>
 
-                    <div className="mt-6 grid gap-3">
+                    <div className="mt-5 grid gap-3 md:mt-6">
                         {activeQuestion.options.map((option, index) => {
                             const selected = selectedAnswer === index;
 
@@ -898,7 +1195,7 @@ export default function Quiz({ session }) {
                         <button
                             type="button"
                             onClick={feedback ? () => goNext() : submitAnswer}
-                            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-6 text-sm font-black text-white shadow-lg transition hover:bg-sky-700"
+                            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-6 text-sm font-black text-white shadow-lg transition hover:bg-sky-700 sm:w-auto"
                         >
                             {feedback
                                 ? activeQuestionIndex === activeModule.questions.length - 1
