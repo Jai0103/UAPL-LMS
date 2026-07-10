@@ -147,9 +147,13 @@ export default function Login({ onLogin }) {
                         <section className="hidden bg-gradient-to-br from-sky-700 via-blue-800 to-slate-950 p-10 text-white lg:block">
                             <div className="flex h-full flex-col justify-between">
                                 <div>
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-                                        <Plane className="h-7 w-7" />
-                                    </div>
+<div className="inline-flex rounded-2xl bg-white/95 p-3 shadow-lg">
+    <img
+        src="/UAPL-LMS/AGA_Logo_fullcolor_Horizontal.png"
+        alt="Apollo Global Academy Logo"
+        className="h-12 w-auto object-contain"
+    />
+</div>
 
                                     <h1 className="mt-8 text-4xl font-black leading-tight">
                                         UAPL Training Portal
@@ -177,9 +181,13 @@ export default function Login({ onLogin }) {
 
                         <section className="p-6 sm:p-8 lg:p-10">
                             <div className="mx-auto max-w-md">
-                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-                                    <LockKeyhole className="h-7 w-7" />
-                                </div>
+<div className="flex items-center gap-3">
+    <img
+        src="/UAPL-LMS/AGA_Logo_fullcolor_Horizontal.png"
+        alt="Apollo Global Academy Logo"
+        className="h-14 w-auto object-contain"
+    />
+</div>
 
                                 <h2 className="mt-6 text-3xl font-black text-slate-950 dark:text-white">
                                     Sign in
