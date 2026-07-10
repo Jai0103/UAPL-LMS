@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+    AlertTriangle,
     BarChart3,
     BookOpen,
     Brain,
@@ -7,6 +8,7 @@ import {
     ClipboardCheck,
     FileText,
     Loader2,
+    Target,
     TrendingUp,
     Users
 } from "lucide-react";
@@ -64,6 +66,18 @@ function getRemainingDays(value) {
     return `${days} days remaining`;
 }
 
+function parseBreakdown(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
 function StatCard({ icon: Icon, label, value, detail, color }) {
     return (
         <div className="min-w-0 rounded-3xl border border-white/70 bg-white/85 p-5 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
@@ -115,8 +129,6 @@ function CategoryDistributionCard({ questions }) {
         }));
     }, [questions]);
 
-    const totalQuestions = questions.length;
-
     return (
         <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -128,7 +140,7 @@ function CategoryDistributionCard({ questions }) {
                         Questions by Training Module
                     </h2>
                     <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                        {totalQuestions} total questions categorized across 6 modules
+                        {questions.length} total questions categorized across 6 modules
                     </p>
                 </div>
 
@@ -163,6 +175,99 @@ function CategoryDistributionCard({ questions }) {
     );
 }
 
+function LatestWeaknessCard({ latestAttempt }) {
+    const breakdown = parseBreakdown(latestAttempt?.categoryBreakdown);
+    const weakModules = breakdown.filter(item => Number(item.total || 0) > 0 && Number(item.accuracy || 0) < 75);
+
+    if (!latestAttempt) {
+        return (
+            <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+                <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                        <Target className="h-6 w-6" />
+                    </div>
+
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                            Latest Module Focus
+                        </p>
+                        <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
+                            No quiz attempt yet
+                        </h2>
+                        <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                            Complete a quiz to see which modules need more attention.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                        Latest Module Focus
+                    </p>
+                    <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
+                        {weakModules.length ? "Review these modules next" : "All modules passed"}
+                    </h2>
+                    <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                        Based on your latest quiz attempt. Module passing rate is 75%.
+                    </p>
+                </div>
+
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                    weakModules.length
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                }`}>
+                    {weakModules.length ? <AlertTriangle className="h-6 w-6" /> : <Target className="h-6 w-6" />}
+                </div>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+                {(weakModules.length ? weakModules : breakdown).map(item => (
+                    <div
+                        key={item.category}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-black text-slate-900 dark:text-white">
+                                {item.category}
+                            </p>
+
+                            <span className={`rounded-full px-3 py-1 text-xs font-black ${
+                                Number(item.accuracy) >= 75
+                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                                    : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                            }`}>
+                                {item.accuracy}%
+                            </span>
+                        </div>
+
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                            <div
+                                className={`h-full rounded-full ${
+                                    Number(item.accuracy) >= 75
+                                        ? "bg-gradient-to-r from-emerald-500 to-green-500"
+                                        : "bg-gradient-to-r from-amber-500 to-orange-500"
+                                }`}
+                                style={{ width: `${Number(item.accuracy || 0)}%` }}
+                            />
+                        </div>
+
+                        <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {item.correct} correct out of {item.total}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function StudentProgress({ session, quizResults }) {
     const myResults = useMemo(() => {
         return quizResults.filter(result =>
@@ -188,49 +293,53 @@ function StudentProgress({ session, quizResults }) {
     const expiryRemaining = getRemainingDays(session?.expiryDate);
 
     return (
-        <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-            <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
-                My Progress
-            </p>
+        <>
+            <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+                <p className="text-sm font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                    My Progress
+                </p>
 
-            <h1 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
-                Welcome back, {session?.name || session?.username}
-            </h1>
+                <h1 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
+                    Welcome back, {session?.name || session?.username}
+                </h1>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard
-                    icon={ClipboardCheck}
-                    label="Last Quiz Score"
-                    value={lastAttempt ? `${lastAttempt.score}/${lastAttempt.total}` : "None"}
-                    detail={lastAttempt ? `${lastAttempt.accuracy}% accuracy` : "No attempt yet"}
-                    color="bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
-                />
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={ClipboardCheck}
+                        label="Last Quiz Score"
+                        value={lastAttempt ? `${lastAttempt.score}/${lastAttempt.total}` : "None"}
+                        detail={lastAttempt ? `${lastAttempt.accuracy}% accuracy` : "No attempt yet"}
+                        color="bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                    />
 
-                <StatCard
-                    icon={TrendingUp}
-                    label="Best Accuracy"
-                    value={`${bestScore}%`}
-                    detail="Highest quiz performance"
-                    color="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                />
+                    <StatCard
+                        icon={TrendingUp}
+                        label="Best Accuracy"
+                        value={`${bestScore}%`}
+                        detail="Highest quiz performance"
+                        color="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                    />
 
-                <StatCard
-                    icon={BarChart3}
-                    label="Average Accuracy"
-                    value={`${averageAccuracy}%`}
-                    detail={`${myResults.length} total attempts`}
-                    color="bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                />
+                    <StatCard
+                        icon={BarChart3}
+                        label="Average Accuracy"
+                        value={`${averageAccuracy}%`}
+                        detail={`${myResults.length} total attempts`}
+                        color="bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                    />
 
-                <StatCard
-                    icon={CalendarClock}
-                    label="Access Expiry"
-                    value={expiryDate}
-                    detail={expiryRemaining}
-                    color="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                />
+                    <StatCard
+                        icon={CalendarClock}
+                        label="Access Expiry"
+                        value={expiryDate}
+                        detail={expiryRemaining}
+                        color="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                    />
+                </div>
             </div>
-        </div>
+
+            <LatestWeaknessCard latestAttempt={lastAttempt} />
+        </>
     );
 }
 
