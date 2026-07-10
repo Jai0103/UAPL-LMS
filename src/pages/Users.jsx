@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     CalendarPlus,
     Mail,
@@ -11,10 +11,10 @@ import {
     X
 } from "lucide-react";
 import {
+    approveAndSendActivationEmail,
     getUsers,
     saveUsers,
-    sendLoginEmail,
-    approveAndSendActivationEmail
+    sendLoginEmail
 } from "../lib/storage";
 
 function createId() {
@@ -49,7 +49,11 @@ function formatDate(value) {
 
 function normalizeUser(user) {
     const username = String(user.username || "").trim().toLowerCase();
-    const isMainAdmin = username === "jairus" || String(user.id) === "3714a0ef-41a8-454d-b037-38fa591b1345";
+    const isMainAdmin =
+        username === "admin" ||
+        username === "jairus" ||
+        String(user.id) === "admin-001" ||
+        String(user.id) === "3714a0ef-41a8-454d-b037-38fa591b1345";
 
     return {
         ...user,
@@ -80,8 +84,11 @@ export default function Users() {
     const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
+    const [currentPage, setCurrentPage] = useState(1);
     const [notice, setNotice] = useState(null);
     const [emailTarget, setEmailTarget] = useState(null);
+
+    const rowsPerPage = 10;
 
     const [form, setForm] = useState({
         name: "",
@@ -110,6 +117,14 @@ export default function Users() {
             return matchesSearch && matchesStatus;
         });
     }, [users, search, statusFilter]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / rowsPerPage));
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, startIndex + rowsPerPage);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, statusFilter]);
 
     function showNotice(type, message) {
         setNotice({ type, message });
@@ -198,21 +213,6 @@ export default function Users() {
         );
     }
 
-    function approveUser(id) {
-        setUsers(previous =>
-            sanitizeUsers(previous.map(user => {
-                if (user.id !== id || user.role === "admin") return user;
-
-                return {
-                    ...user,
-                    role: "student",
-                    status: "Active",
-                    expiryDate: user.expiryDate || addOneMonth(new Date())
-                };
-            }))
-        );
-    }
-
     function extendUser(id) {
         setUsers(previous =>
             sanitizeUsers(previous.map(user => {
@@ -266,36 +266,36 @@ export default function Users() {
     }
 
     async function approveAndEmail(user) {
-    if (!user.email) {
-        showNotice("error", "This student has no email address.");
-        return;
-    }
-
-    try {
-        setSaving(true);
-
-        const result = await approveAndSendActivationEmail(user.id);
-
-        if (!result.success) {
-            showNotice("error", result.message || "Unable to approve and send email.");
+        if (!user.email) {
+            showNotice("error", "This student has no email address.");
             return;
         }
 
-        if (result.user) {
-            setUsers(previous =>
-                sanitizeUsers(previous.map(item =>
-                    item.id === result.user.id ? { ...item, ...result.user } : item
-                ))
-            );
-        }
+        try {
+            setSaving(true);
 
-        showNotice("success", "Student approved and activation email sent.");
-    } catch (error) {
-        showNotice("error", error.message || "Unable to approve and send email.");
-    } finally {
-        setSaving(false);
+            const result = await approveAndSendActivationEmail(user.id);
+
+            if (!result.success) {
+                showNotice("error", result.message || "Unable to approve and send email.");
+                return;
+            }
+
+            if (result.user) {
+                setUsers(previous =>
+                    sanitizeUsers(previous.map(item =>
+                        item.id === result.user.id ? { ...item, ...result.user } : item
+                    ))
+                );
+            }
+
+            showNotice("success", "Student approved and activation email sent.");
+        } catch (error) {
+            showNotice("error", error.message || "Unable to approve and send email.");
+        } finally {
+            setSaving(false);
+        }
     }
-}
 
     async function confirmSendActivationEmail() {
         if (!emailTarget) return;
@@ -401,7 +401,7 @@ export default function Users() {
                     <div>
                         <h2 className="font-black text-slate-950 dark:text-white">Users Table</h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Pending registrations remain student accounts until approved.
+                            Showing 10 users per page.
                         </p>
                     </div>
 
@@ -442,7 +442,7 @@ export default function Users() {
                         </thead>
 
                         <tbody>
-                            {filteredUsers.map(user => {
+                            {paginatedUsers.map(user => {
                                 const isAdmin = user.role === "admin";
                                 const label = getAccessLabel(user);
                                 const isActive = String(user.status).toLowerCase() === "active";
@@ -505,59 +505,59 @@ export default function Users() {
                                         </td>
 
                                         <td className="table-cell">
-                                          <div className="flex flex-wrap items-center gap-2">
-    {!isAdmin && !isActive && (
-        <button
-            type="button"
-            onClick={() => approveAndEmail(user)}
-            disabled={saving || !user.email}
-            title="Approve account and send activation email"
-            aria-label="Approve account and send activation email"
-            className="premium-action-btn bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-emerald-500/25 hover:from-emerald-400 hover:to-emerald-700 disabled:opacity-40"
-        >
-            <UserCheck size={17} />
-        </button>
-    )}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {!isAdmin && !isActive && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => approveAndEmail(user)}
+                                                        disabled={saving || !user.email}
+                                                        title="Approve account and send activation email"
+                                                        aria-label="Approve account and send activation email"
+                                                        className="premium-action-btn bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-emerald-500/25 hover:from-emerald-400 hover:to-emerald-700 disabled:opacity-40"
+                                                    >
+                                                        <UserCheck size={17} />
+                                                    </button>
+                                                )}
 
-    {!isAdmin && (
-        <button
-            type="button"
-            onClick={() => extendUser(user.id)}
-            disabled={saving}
-            title="Extend access by 1 month"
-            aria-label="Extend access by 1 month"
-            className="premium-action-btn bg-gradient-to-br from-cyan-500 to-sky-700 shadow-cyan-500/25 hover:from-cyan-400 hover:to-sky-700 disabled:opacity-40"
-        >
-            <CalendarPlus size={17} />
-        </button>
-    )}
+                                                {!isAdmin && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => extendUser(user.id)}
+                                                        disabled={saving}
+                                                        title="Extend access by 1 month"
+                                                        aria-label="Extend access by 1 month"
+                                                        className="premium-action-btn bg-gradient-to-br from-cyan-500 to-sky-700 shadow-cyan-500/25 hover:from-cyan-400 hover:to-sky-700 disabled:opacity-40"
+                                                    >
+                                                        <CalendarPlus size={17} />
+                                                    </button>
+                                                )}
 
-    {!isAdmin && isActive && (
-        <button
-            type="button"
-            onClick={() => setEmailTarget(user)}
-            disabled={!canEmail || saving}
-            title="Send activation email"
-            aria-label="Send activation email"
-            className="premium-action-btn bg-gradient-to-br from-blue-500 to-indigo-700 shadow-blue-500/25 hover:from-blue-400 hover:to-indigo-700 disabled:opacity-40"
-        >
-            <Mail size={17} />
-        </button>
-    )}
+                                                {!isAdmin && isActive && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEmailTarget(user)}
+                                                        disabled={!canEmail || saving}
+                                                        title="Send activation email"
+                                                        aria-label="Send activation email"
+                                                        className="premium-action-btn bg-gradient-to-br from-blue-500 to-indigo-700 shadow-blue-500/25 hover:from-blue-400 hover:to-indigo-700 disabled:opacity-40"
+                                                    >
+                                                        <Mail size={17} />
+                                                    </button>
+                                                )}
 
-    {!isAdmin && (
-        <button
-            type="button"
-            onClick={() => deleteUser(user.id)}
-            disabled={saving}
-            title="Delete user"
-            aria-label="Delete user"
-            className="premium-action-btn bg-gradient-to-br from-rose-500 to-red-700 shadow-rose-500/25 hover:from-rose-400 hover:to-red-700 disabled:opacity-40"
-        >
-            <Trash2 size={17} />
-        </button>
-    )}
-</div>
+                                                {!isAdmin && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => deleteUser(user.id)}
+                                                        disabled={saving}
+                                                        title="Delete user"
+                                                        aria-label="Delete user"
+                                                        className="premium-action-btn bg-gradient-to-br from-rose-500 to-red-700 shadow-rose-500/25 hover:from-rose-400 hover:to-red-700 disabled:opacity-40"
+                                                    >
+                                                        <Trash2 size={17} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -565,8 +565,42 @@ export default function Users() {
                         </tbody>
                     </table>
 
+                    <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                            Showing {filteredUsers.length === 0 ? 0 : startIndex + 1}
+                            {" "}to{" "}
+                            {Math.min(startIndex + rowsPerPage, filteredUsers.length)}
+                            {" "}of{" "}
+                            {filteredUsers.length} users
+                        </p>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                                disabled={currentPage === 1}
+                                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                            >
+                                Previous
+                            </button>
+
+                            <div className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                Page {currentPage} of {totalPages}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                                disabled={currentPage === totalPages}
+                                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+
                     {!filteredUsers.length && (
-                        <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+                        <div className="mt-4 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
                             No users found.
                         </div>
                     )}
@@ -665,32 +699,32 @@ export default function Users() {
                 }
 
                 .premium-action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.45rem;
-    height: 2.45rem;
-    border-radius: 0.95rem;
-    color: white;
-    box-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-}
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 2.45rem;
+                    height: 2.45rem;
+                    border-radius: 0.95rem;
+                    color: white;
+                    box-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
+                    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+                }
 
-.premium-action-btn:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.04);
-    box-shadow: 0 16px 28px rgba(15, 23, 42, 0.22);
-}
+                .premium-action-btn:hover {
+                    transform: translateY(-1px);
+                    filter: brightness(1.04);
+                    box-shadow: 0 16px 28px rgba(15, 23, 42, 0.22);
+                }
 
-.premium-action-btn:active {
-    transform: translateY(0);
-}
+                .premium-action-btn:active {
+                    transform: translateY(0);
+                }
 
-.premium-action-btn:disabled {
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
+                .premium-action-btn:disabled {
+                    cursor: not-allowed;
+                    transform: none;
+                    box-shadow: none;
+                }
             `}</style>
         </div>
     );
