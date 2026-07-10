@@ -10,7 +10,12 @@ import {
     UserCheck,
     X
 } from "lucide-react";
-import { getUsers, saveUsers, sendLoginEmail } from "../lib/storage";
+import {
+    getUsers,
+    saveUsers,
+    sendLoginEmail,
+    approveAndSendActivationEmail
+} from "../lib/storage";
 
 function createId() {
     if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -261,43 +266,36 @@ export default function Users() {
     }
 
     async function approveAndEmail(user) {
-        if (!user.email) {
-            showNotice("error", "This student has no email address.");
+    if (!user.email) {
+        showNotice("error", "This student has no email address.");
+        return;
+    }
+
+    try {
+        setSaving(true);
+
+        const result = await approveAndSendActivationEmail(user.id);
+
+        if (!result.success) {
+            showNotice("error", result.message || "Unable to approve and send email.");
             return;
         }
 
-        const expiryDate = user.expiryDate || addOneMonth(new Date());
-
-        const nextUsers = sanitizeUsers(users.map(item => {
-            if (item.id !== user.id) return item;
-
-            return {
-                ...item,
-                role: "student",
-                status: "Active",
-                expiryDate
-            };
-        }));
-
-        const saved = await saveAllUsers(nextUsers);
-        if (!saved) return;
-
-        try {
-            setSaving(true);
-            const result = await sendLoginEmail(user.id);
-
-            if (!result.success) {
-                showNotice("error", result.message || "Unable to send activation email.");
-                return;
-            }
-
-            showNotice("success", "Student approved and activation email sent.");
-        } catch (error) {
-            showNotice("error", error.message || "Unable to send activation email.");
-        } finally {
-            setSaving(false);
+        if (result.user) {
+            setUsers(previous =>
+                sanitizeUsers(previous.map(item =>
+                    item.id === result.user.id ? { ...item, ...result.user } : item
+                ))
+            );
         }
+
+        showNotice("success", "Student approved and activation email sent.");
+    } catch (error) {
+        showNotice("error", error.message || "Unable to approve and send email.");
+    } finally {
+        setSaving(false);
     }
+}
 
     async function confirmSendActivationEmail() {
         if (!emailTarget) return;
