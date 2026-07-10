@@ -293,3 +293,49 @@ export function clearAllLocalData() {
     localStorage.removeItem(QUIZ_RESULTS_KEY);
     localStorage.removeItem(SESSION_KEY);
 }
+
+export function exportBackup() {
+    return {
+        exportedAt: new Date().toISOString(),
+        version: "uapl-lms-backup-v3",
+        users: getUsers(),
+        questions: getQuestions(),
+        flashcards: getFlashcards(),
+        courseNotes: getCourseNotes(),
+        quizResults: getQuizResults()
+    };
+}
+
+export async function restoreBackup(backup) {
+    if (!backup || typeof backup !== "object") {
+        throw new Error("Invalid backup file.");
+    }
+
+    if (Array.isArray(backup.users)) {
+        writeJSON(USERS_KEY, backup.users);
+        await api.saveUsers(backup.users);
+    }
+
+    if (Array.isArray(backup.questions)) {
+        const questions = backup.questions.map(normalizeQuestion);
+        writeJSON(QUESTIONS_KEY, questions);
+        await api.saveQuestions(questions);
+    }
+
+    if (Array.isArray(backup.flashcards)) {
+        writeJSON(FLASHCARDS_KEY, backup.flashcards);
+        await api.saveFlashcards(backup.flashcards);
+    }
+
+    if (Array.isArray(backup.courseNotes)) {
+        writeJSON(COURSE_NOTES_KEY, backup.courseNotes);
+        await api.saveCourseNotes(backup.courseNotes);
+    }
+
+    await syncFromCloud();
+
+    return {
+        success: true,
+        message: "Backup restored successfully."
+    };
+}
