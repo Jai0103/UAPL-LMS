@@ -38,17 +38,7 @@ async function request(action, payload = {}, options = {}) {
         throw new Error("Unable to connect to the training database.");
     }
 
-    const result = await response.json();
-
-    if (
-        result &&
-        result.success === false &&
-        String(result.message || "").toLowerCase().includes("session")
-    ) {
-        localStorage.removeItem(SESSION_KEY);
-    }
-
-    return result;
+    return response.json();
 }
 
 export const api = {
