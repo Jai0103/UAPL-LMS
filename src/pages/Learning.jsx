@@ -41,6 +41,14 @@ function isCompleted(progress, lessonId) {
     );
 }
 
+function isLessonUnlocked(lessons, progress, lessonId) {
+    const lessonIndex = lessons.findIndex(lesson => String(lesson.id) === String(lessonId));
+
+    if (lessonIndex <= 0) return true;
+
+    return isCompleted(progress, lessons[lessonIndex - 1].id);
+}
+
 function getModuleProgress(lessons, progress, module) {
     const moduleLessons = lessons.filter(lesson => normalizeCategory(lesson.module) === module);
     const completed = moduleLessons.filter(lesson => isCompleted(progress, lesson.id)).length;
@@ -84,10 +92,24 @@ export default function Learning({ session }) {
     const [dialog, setDialog] = useState(null);
 
     useEffect(() => {
-        if (!selectedId && lessons.length) {
-            setSelectedId(lessons[0].id);
+        if (!lessons.length) return;
+
+        const firstUnlockedLesson =
+            lessons.find(lesson => isLessonUnlocked(lessons, progress, lesson.id)) ||
+            lessons[0];
+
+        if (!selectedId) {
+            setSelectedId(firstUnlockedLesson.id);
+            return;
         }
-    }, [lessons, selectedId]);
+
+        const selectedStillExists = lessons.some(lesson => String(lesson.id) === String(selectedId));
+        const selectedIsUnlocked = isLessonUnlocked(lessons, progress, selectedId);
+
+        if (!selectedStillExists || !selectedIsUnlocked) {
+            setSelectedId(firstUnlockedLesson.id);
+        }
+    }, [lessons, progress, selectedId]);
 
     const selectedLesson = useMemo(() => {
         return lessons.find(lesson => String(lesson.id) === String(selectedId)) || lessons[0] || null;
@@ -106,7 +128,13 @@ export default function Learning({ session }) {
         ? Math.round((completedCount / lessons.length) * 100)
         : 0;
 
-    const nextLesson = lessons.find(lesson => !isCompleted(progress, lesson.id)) || lessons[0] || null;
+    const nextLesson =
+        lessons.find(lesson =>
+            isLessonUnlocked(lessons, progress, lesson.id) &&
+            !isCompleted(progress, lesson.id)
+        ) ||
+        lessons[0] ||
+        null;
     const lessonSequence = filteredLessons.length ? filteredLessons : lessons;
     const selectedIndex = selectedLesson
         ? lessonSequence.findIndex(lesson => String(lesson.id) === String(selectedLesson.id))
@@ -115,9 +143,28 @@ export default function Learning({ session }) {
     const nextOrderedLesson = selectedIndex >= 0 && selectedIndex < lessonSequence.length - 1
         ? lessonSequence[selectedIndex + 1]
         : null;
+    const canOpenNextOrderedLesson = nextOrderedLesson
+        ? isLessonUnlocked(lessons, progress, nextOrderedLesson.id)
+        : false;
 
     function closeDialog() {
         setDialog(null);
+    }
+
+    function changeModule(module) {
+        setActiveModule(module);
+
+        const nextLessonList = module === "All"
+            ? lessons
+            : lessons.filter(lesson => normalizeCategory(lesson.module) === module);
+
+        const firstUnlockedLesson = nextLessonList.find(lesson =>
+            isLessonUnlocked(lessons, progress, lesson.id)
+        );
+
+        if (firstUnlockedLesson) {
+            setSelectedId(firstUnlockedLesson.id);
+        }
     }
 
     async function refreshLearning() {
@@ -308,7 +355,7 @@ export default function Learning({ session }) {
                                     <button
                                         key={module}
                                         type="button"
-                                        onClick={() => setActiveModule(module)}
+                                        onClick={() => changeModule(module)}
                                         className={`min-w-max rounded-2xl border px-4 py-3 text-left text-xs font-black transition ${
                                             active
                                                 ? "border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-600/20"
@@ -325,8 +372,8 @@ export default function Learning({ session }) {
                         </div>
                     </section>
 
-                    <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-                        <section className="order-2 rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75 lg:order-1">
+                    <div className="grid gap-6 lg:grid-cols-[380px_1fr] lg:items-start">
+                        <section className="order-2 rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75 lg:sticky lg:top-6 lg:order-1 lg:max-h-[calc(100vh-120px)] lg:overflow-hidden">
                             <div className="mb-4 flex items-center gap-3">
                                 <div className="rounded-2xl bg-sky-100 p-3 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
                                     <Layers3 className="h-5 w-5" />
@@ -341,9 +388,10 @@ export default function Learning({ session }) {
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="space-y-3 lg:max-h-[calc(100vh-250px)] lg:overflow-y-auto lg:pr-1">
                                 {filteredLessons.map((lesson, index) => {
                                     const completed = isCompleted(progress, lesson.id);
+                                    const locked = !isLessonUnlocked(lessons, progress, lesson.id);
                                     const active = selectedLesson?.id === lesson.id;
                                     const module = normalizeCategory(lesson.module);
 
@@ -351,9 +399,14 @@ export default function Learning({ session }) {
                                         <button
                                             key={lesson.id}
                                             type="button"
-                                            onClick={() => setSelectedId(lesson.id)}
+                                            onClick={() => {
+                                                if (!locked) setSelectedId(lesson.id);
+                                            }}
+                                            disabled={locked}
                                             className={`w-full rounded-3xl border p-4 text-left transition ${
-                                                active
+                                                locked
+                                                    ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-70 dark:border-slate-800 dark:bg-slate-950/60"
+                                                    : active
                                                     ? "border-blue-500 bg-blue-50 shadow-lg shadow-blue-600/10 dark:border-sky-500 dark:bg-sky-500/10"
                                                     : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
                                             }`}
@@ -362,13 +415,25 @@ export default function Learning({ session }) {
                                                 <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-xs font-black ${
                                                     completed
                                                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                                                        : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                                        : locked
+                                                            ? "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
+                                                            : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                                                 }`}>
-                                                    {completed ? <CheckCircle2 className="h-5 w-5" /> : index + 1}
+                                                    {completed ? (
+                                                        <CheckCircle2 className="h-5 w-5" />
+                                                    ) : locked ? (
+                                                        <Lock className="h-4 w-4" />
+                                                    ) : (
+                                                        index + 1
+                                                    )}
                                                 </div>
 
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="line-clamp-2 font-black text-slate-950 dark:text-white">
+                                                    <p className={`line-clamp-2 font-black ${
+                                                        locked
+                                                            ? "text-slate-400 dark:text-slate-500"
+                                                            : "text-slate-950 dark:text-white"
+                                                    }`}>
                                                         {lesson.title}
                                                     </p>
                                                     <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -386,9 +451,11 @@ export default function Learning({ session }) {
                                                         <span className={`rounded-full px-3 py-1 text-xs font-black ${
                                                             completed
                                                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                                                                : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                                                : locked
+                                                                    ? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                                                                    : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                                                         }`}>
-                                                            {completed ? "Completed" : "Pending"}
+                                                            {completed ? "Completed" : locked ? "Locked" : "Pending"}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -399,7 +466,7 @@ export default function Learning({ session }) {
                             </div>
                         </section>
 
-                        <section className="order-1 overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75 lg:order-2">
+                        <section className="order-1 self-start overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75 lg:order-2">
                             {selectedLesson ? (
                                 <>
                                     <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
@@ -503,8 +570,8 @@ export default function Learning({ session }) {
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => nextOrderedLesson && setSelectedId(nextOrderedLesson.id)}
-                                                    disabled={!nextOrderedLesson}
+                                                    onClick={() => canOpenNextOrderedLesson && setSelectedId(nextOrderedLesson.id)}
+                                                    disabled={!canOpenNextOrderedLesson}
                                                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
                                                 >
                                                     Next
