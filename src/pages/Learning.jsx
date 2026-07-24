@@ -22,7 +22,7 @@ import {
     syncFromCloud
 } from "../lib/storage";
 import { TRAINING_CATEGORIES, normalizeCategory } from "../lib/categoryAnalysis";
-import { getVideoEmbedUrl } from "../lib/video";
+import { getVideoStreamUrl } from "../lib/video";
 import PremiumDialog from "../components/PremiumDialog";
 
 const MODULE_COLORS = {
@@ -471,20 +471,19 @@ export default function Learning({ session }) {
                                 <>
                                     <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
                                         {selectedLesson.videoUrl ? (
-                                            <>
-                                                <iframe
-                                                    src={getVideoEmbedUrl(selectedLesson.videoUrl)}
-                                                    title={selectedLesson.title}
-                                                    allow="autoplay; encrypted-media"
-                                                    className="h-full w-full"
-                                                />
-
-                                                <div
-                                                    className="absolute right-0 top-0 z-10 h-16 w-24 bg-slate-950"
-                                                    aria-hidden="true"
-                                                    title="External video opening is disabled"
-                                                />
-                                            </>
+                                            <video
+                                                key={selectedLesson.id}
+                                                src={getVideoStreamUrl(selectedLesson.videoUrl)}
+                                                title={selectedLesson.title}
+                                                controls
+                                                controlsList="nodownload noremoteplayback"
+                                                disablePictureInPicture
+                                                playsInline
+                                                preload="metadata"
+                                                className="h-full w-full bg-slate-950 object-contain"
+                                            >
+                                                Your browser does not support the video player.
+                                            </video>
                                         ) : (
                                             <div className="flex h-full items-center justify-center p-8 text-center text-slate-300">
                                                 <div>
