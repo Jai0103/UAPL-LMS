@@ -15,11 +15,13 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
+import Learning from "./pages/Learning";
 import Quiz from "./pages/Quiz";
 import Flashcards from "./pages/Flashcards";
 import CourseNotes from "./pages/CourseNotes";
 import QuizManager from "./pages/QuizManager";
 import FlashcardManager from "./pages/FlashcardManager";
+import LearningManager from "./pages/LearningManager";
 import QuizResults from "./pages/QuizResults";
 import UserManagement from "./pages/Users";
 import ImportBackup from "./pages/ImportBackup";
@@ -308,6 +310,7 @@ export default function App() {
                 }
             >
                 <Route path="/dashboard" element={<Dashboard session={session} />} />
+                <Route path="/learning" element={<Learning session={session} />} />
                 <Route path="/quiz" element={<Quiz session={session} />} />
                 <Route path="/flashcards" element={<Flashcards session={session} />} />
                 <Route path="/course-notes" element={<CourseNotes session={session} />} />
@@ -327,6 +330,15 @@ export default function App() {
                     element={
                         <AdminRoute session={session}>
                             <FlashcardManager />
+                        </AdminRoute>
+                    }
+                />
+
+                <Route
+                    path="/learning-manager"
+                    element={
+                        <AdminRoute session={session}>
+                            <LearningManager />
                         </AdminRoute>
                     }
                 />
