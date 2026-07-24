@@ -31,7 +31,7 @@ const navItems = [
     icon: BarChart3,
     adminOnly: true
 },
-    { label: "Learning", path: "/learning", icon: GraduationCap },
+    { label: "Learning", path: "/learning", icon: GraduationCap, adminOnly: true },
     { label: "Quiz Mode", path: "/quiz", icon: ClipboardList },
     { label: "Flashcards", path: "/flashcards", icon: Layers },
     { label: "Course Notes", path: "/course-notes", icon: FileText },
