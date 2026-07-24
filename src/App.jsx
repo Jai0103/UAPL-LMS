@@ -63,12 +63,6 @@ export default function App() {
 
             syncFromCloud().catch(error => {
                 console.error("Background sync failed:", error);
-                const message = String(error?.message || "").toLowerCase();
-
-                if (message.includes("session") || message.includes("token")) {
-                    clearSession();
-                    setSession(null);
-                }
             });
         } else {
             clearSession();
@@ -194,6 +188,33 @@ export default function App() {
         );
     }
 
+    function shouldForceLogoutFromMessage(message) {
+        const text = String(message || "").toLowerCase();
+
+        return (
+            text.includes("session expired") ||
+            text.includes("session token is required") ||
+            text.includes("account is inactive") ||
+            text.includes("account was not found") ||
+            text.includes("account access is no longer active")
+        );
+    }
+
+    function hasSessionProfileChanged(previousSession, nextSession) {
+        if (!previousSession || !nextSession) return true;
+
+        return [
+            "id",
+            "name",
+            "username",
+            "role",
+            "status",
+            "expiryDate",
+            "createdAt",
+            "lastLogin"
+        ].some(key => String(previousSession[key] || "") !== String(nextSession[key] || ""));
+    }
+
     async function validateCurrentSession(options = {}) {
         const { force = false, minIntervalMs = 45000 } = options;
         const now = Date.now();
@@ -218,7 +239,12 @@ export default function App() {
             const result = await api.validateSessionStatus();
 
             if (!result.success) {
-                forceLogout(result.message || "Your session has expired. Please sign in again.");
+                if (shouldForceLogoutFromMessage(result.message)) {
+                    forceLogout(result.message || "Your session has expired. Please sign in again.");
+                } else {
+                    console.warn("Session validation skipped:", result.message);
+                }
+
                 return;
             }
 
@@ -247,16 +273,12 @@ export default function App() {
 
             setSession(previousSession => {
                 if (!previousSession) return previousSession;
-                return nextSession;
+                return hasSessionProfileChanged(previousSession, nextSession)
+                    ? nextSession
+                    : previousSession;
             });
         } catch (error) {
             console.error("Session validation failed:", error);
-
-            const message = String(error?.message || "").toLowerCase();
-
-            if (message.includes("session") || message.includes("token")) {
-                forceLogout("Your secure session has expired. Please sign in again.");
-            }
         } finally {
             validationRef.current.running = false;
         }
