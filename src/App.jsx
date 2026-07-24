@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./lib/api";
 import {
@@ -6,6 +6,7 @@ import {
     getSession,
     getTheme,
     initStorage,
+    saveSession,
     saveTheme,
     syncFromCloud
 } from "./lib/storage";
@@ -43,6 +44,10 @@ export default function App() {
     const [theme, setTheme] = useState("light");
     const [isBooting, setIsBooting] = useState(true);
     const [bootMessage] = useState("Preparing dashboard...");
+    const validationRef = useRef({
+        running: false,
+        lastRun: 0
+    });
 
     useEffect(() => {
         initStorage();
@@ -76,19 +81,19 @@ export default function App() {
     useEffect(() => {
         if (!session) return;
 
-        validateCurrentSession();
+        validateCurrentSession({ force: true });
 
         const interval = setInterval(() => {
-            validateCurrentSession();
-        }, 30000);
+            validateCurrentSession({ minIntervalMs: 55000 });
+        }, 60000);
 
         function handleFocus() {
-            validateCurrentSession();
+            validateCurrentSession({ minIntervalMs: 45000 });
         }
 
         function handleVisibilityChange() {
             if (!document.hidden) {
-                validateCurrentSession();
+                validateCurrentSession({ minIntervalMs: 45000 });
             }
         }
 
@@ -189,7 +194,16 @@ export default function App() {
         );
     }
 
-    async function validateCurrentSession() {
+    async function validateCurrentSession(options = {}) {
+        const { force = false, minIntervalMs = 45000 } = options;
+        const now = Date.now();
+
+        if (validationRef.current.running) return;
+
+        if (!force && now - validationRef.current.lastRun < minIntervalMs) {
+            return;
+        }
+
         const currentSession = getSession();
 
         if (!currentSession?.sessionToken) {
@@ -197,18 +211,18 @@ export default function App() {
             return;
         }
 
+        validationRef.current.running = true;
+        validationRef.current.lastRun = now;
+
         try {
-            const result = await api.getBootstrap();
+            const result = await api.validateSessionStatus();
 
             if (!result.success) {
                 forceLogout(result.message || "Your session has expired. Please sign in again.");
                 return;
             }
 
-            const latestUser = result.users.find(user =>
-                String(user.id) === String(currentSession.id) ||
-                String(user.username).toLowerCase() === String(currentSession.username).toLowerCase()
-            );
+            const latestUser = result.currentUser;
 
             const shouldLogout =
                 !latestUser ||
@@ -219,7 +233,22 @@ export default function App() {
                 forceLogout(
                     "Your account access is no longer active. You have been signed out automatically."
                 );
+                return;
             }
+
+            const nextSession = {
+                ...currentSession,
+                ...latestUser,
+                sessionToken: currentSession.sessionToken,
+                sessionExpiresAt: currentSession.sessionExpiresAt
+            };
+
+            saveSession(nextSession);
+
+            setSession(previousSession => {
+                if (!previousSession) return previousSession;
+                return nextSession;
+            });
         } catch (error) {
             console.error("Session validation failed:", error);
 
@@ -228,6 +257,8 @@ export default function App() {
             if (message.includes("session") || message.includes("token")) {
                 forceLogout("Your secure session has expired. Please sign in again.");
             }
+        } finally {
+            validationRef.current.running = false;
         }
     }
 
@@ -311,13 +342,13 @@ export default function App() {
             >
                 <Route path="/dashboard" element={<Dashboard session={session} />} />
                 <Route
-    path="/learning"
-    element={
-        <AdminRoute session={session}>
-            <Learning session={session} />
-        </AdminRoute>
-    }
-/>
+                    path="/learning"
+                    element={
+                        <AdminRoute session={session}>
+                            <Learning session={session} />
+                        </AdminRoute>
+                    }
+                />
                 <Route path="/quiz" element={<Quiz session={session} />} />
                 <Route path="/flashcards" element={<Flashcards session={session} />} />
                 <Route path="/course-notes" element={<CourseNotes session={session} />} />
