@@ -4,7 +4,6 @@ import {
     CheckCircle2,
     CirclePlay,
     Clock3,
-    ExternalLink,
     FileText,
     GraduationCap,
     Layers3,
@@ -21,7 +20,7 @@ import {
     syncFromCloud
 } from "../lib/storage";
 import { TRAINING_CATEGORIES, normalizeCategory } from "../lib/categoryAnalysis";
-import { getVideoEmbedUrl, getVideoOpenUrl } from "../lib/video";
+import { getVideoEmbedUrl } from "../lib/video";
 import PremiumDialog from "../components/PremiumDialog";
 
 const MODULE_COLORS = {
@@ -373,15 +372,22 @@ export default function Learning({ session }) {
                         <section className="order-1 overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75 lg:order-2">
                             {selectedLesson ? (
                                 <>
-                                    <div className="aspect-video w-full bg-slate-950">
+                                    <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
                                         {selectedLesson.videoUrl ? (
-                                            <iframe
-                                                src={getVideoEmbedUrl(selectedLesson.videoUrl)}
-                                                title={selectedLesson.title}
-                                                allow="autoplay; encrypted-media; picture-in-picture"
-                                                allowFullScreen
-                                                className="h-full w-full"
-                                            />
+                                            <>
+                                                <iframe
+                                                    src={getVideoEmbedUrl(selectedLesson.videoUrl)}
+                                                    title={selectedLesson.title}
+                                                    allow="autoplay; encrypted-media"
+                                                    className="h-full w-full"
+                                                />
+
+                                                <div
+                                                    className="absolute right-0 top-0 z-10 h-16 w-24 bg-slate-950"
+                                                    aria-hidden="true"
+                                                    title="External video opening is disabled"
+                                                />
+                                            </>
                                         ) : (
                                             <div className="flex h-full items-center justify-center p-8 text-center text-slate-300">
                                                 <div>
@@ -411,18 +417,6 @@ export default function Learning({ session }) {
                                             </div>
 
                                             <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
-                                                {selectedLesson.videoUrl && (
-                                                    <a
-                                                        href={getVideoOpenUrl(selectedLesson.videoUrl)}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
-                                                    >
-                                                        <ExternalLink className="h-4 w-4" />
-                                                        Open Video
-                                                    </a>
-                                                )}
-
                                                 {selectedLesson.materialUrl && (
                                                     <a
                                                         href={selectedLesson.materialUrl}
