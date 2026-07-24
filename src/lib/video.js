@@ -25,6 +25,19 @@ export function getVideoEmbedUrl(url) {
     return value;
 }
 
+export function getVideoStreamUrl(url) {
+    if (!url) return "";
+
+    const value = String(url).trim();
+    const driveId = getGoogleDriveFileId(value);
+
+    if (driveId) {
+        return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(driveId)}`;
+    }
+
+    return value;
+}
+
 export function getVideoOpenUrl(url) {
     if (!url) return "";
 
