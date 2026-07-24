@@ -64,6 +64,9 @@ export const api = {
     getBootstrap: () =>
         request("getBootstrap"),
 
+    validateSessionStatus: () =>
+        request("validateSessionStatus"),
+
     saveUsers: users =>
         request("saveUsers", { users }),
 
