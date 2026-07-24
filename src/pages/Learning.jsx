@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+    ArrowLeft,
+    ArrowRight,
     BookOpenCheck,
     CheckCircle2,
     CirclePlay,
@@ -105,6 +107,14 @@ export default function Learning({ session }) {
         : 0;
 
     const nextLesson = lessons.find(lesson => !isCompleted(progress, lesson.id)) || lessons[0] || null;
+    const lessonSequence = filteredLessons.length ? filteredLessons : lessons;
+    const selectedIndex = selectedLesson
+        ? lessonSequence.findIndex(lesson => String(lesson.id) === String(selectedLesson.id))
+        : -1;
+    const previousLesson = selectedIndex > 0 ? lessonSequence[selectedIndex - 1] : null;
+    const nextOrderedLesson = selectedIndex >= 0 && selectedIndex < lessonSequence.length - 1
+        ? lessonSequence[selectedIndex + 1]
+        : null;
 
     function closeDialog() {
         setDialog(null);
@@ -162,12 +172,32 @@ export default function Learning({ session }) {
                 completedAt: localRow.completedAt
             });
 
-            setProgress(getLessonProgress());
+            const latestProgress = getLessonProgress();
+            setProgress(latestProgress);
+
+            const activeSequence = activeModule === "All" ? lessons : filteredLessons;
+            const currentIndex = activeSequence.findIndex(item => String(item.id) === String(lesson.id));
+            const nextIncompleteLesson =
+                activeSequence.slice(currentIndex + 1).find(item => !isCompleted(latestProgress, item.id)) ||
+                lessons.find(item =>
+                    String(item.id) !== String(lesson.id) &&
+                    !isCompleted(latestProgress, item.id)
+                );
+
+            if (nextIncompleteLesson) {
+                setSelectedId(nextIncompleteLesson.id);
+
+                if (!activeSequence.some(item => String(item.id) === String(nextIncompleteLesson.id))) {
+                    setActiveModule("All");
+                }
+            }
 
             setDialog({
                 type: "success",
                 title: "Lesson Completed",
-                message: `"${lesson.title}" has been added to your learning progress.`,
+                message: nextIncompleteLesson
+                    ? `"${lesson.title}" is completed. Your next lesson is ready.`
+                    : `"${lesson.title}" is completed. You have finished all available lessons.`,
                 confirmText: "Continue",
                 onConfirm: closeDialog
             });
@@ -446,19 +476,41 @@ export default function Learning({ session }) {
                                                 )}
                                             </div>
 
-                                            <button
-                                                type="button"
-                                                onClick={() => markCompleted(selectedLesson)}
-                                                disabled={saving || isCompleted(progress, selectedLesson.id)}
-                                                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-emerald-600"
-                                            >
-                                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpenCheck className="h-4 w-4" />}
-                                                {isCompleted(progress, selectedLesson.id)
-                                                    ? "Completed"
-                                                    : saving
-                                                        ? "Saving..."
-                                                        : "Mark as Completed"}
-                                            </button>
+                                            <div className="grid gap-2 sm:grid-cols-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => previousLesson && setSelectedId(previousLesson.id)}
+                                                    disabled={!previousLesson}
+                                                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+                                                >
+                                                    <ArrowLeft className="h-4 w-4" />
+                                                    Previous
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => markCompleted(selectedLesson)}
+                                                    disabled={saving || isCompleted(progress, selectedLesson.id)}
+                                                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-emerald-600"
+                                                >
+                                                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpenCheck className="h-4 w-4" />}
+                                                    {isCompleted(progress, selectedLesson.id)
+                                                        ? "Completed"
+                                                        : saving
+                                                            ? "Saving..."
+                                                            : "Complete & Continue"}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => nextOrderedLesson && setSelectedId(nextOrderedLesson.id)}
+                                                    disabled={!nextOrderedLesson}
+                                                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+                                                >
+                                                    Next
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </>
