@@ -7,6 +7,8 @@ const QUESTIONS_KEY = "uapl_lms_questions_v2";
 const FLASHCARDS_KEY = "uapl_lms_flashcards_v2";
 const COURSE_NOTES_KEY = "uapl_lms_course_notes_v2";
 const QUIZ_RESULTS_KEY = "uapl_lms_quiz_results_v2";
+const COURSE_LESSONS_KEY = "uapl_lms_course_lessons_v1";
+const LESSON_PROGRESS_KEY = "uapl_lms_lesson_progress_v1";
 const SESSION_KEY = "uapl_lms_session_v3";
 const THEME_KEY = "uapl_lms_theme_v1";
 
@@ -51,6 +53,22 @@ function questionsToFlashcards(questions) {
     }));
 }
 
+function normalizeCourseLesson(lesson, index = 0) {
+    return {
+        id: lesson.id || `lesson-${index + 1}`,
+        module: lesson.module || lesson.category || "General UAS Knowledge",
+        title: lesson.title || "",
+        description: lesson.description || "",
+        videoUrl: lesson.videoUrl || "",
+        materialUrl: lesson.materialUrl || "",
+        duration: lesson.duration || "",
+        order: Number(lesson.order || index + 1),
+        status: lesson.status || "Active",
+        createdAt: lesson.createdAt || new Date().toISOString(),
+        updatedAt: lesson.updatedAt || ""
+    };
+}
+
 export function initStorage() {
     if (!localStorage.getItem(USERS_KEY)) {
         writeJSON(USERS_KEY, DEFAULT_USERS || []);
@@ -71,6 +89,14 @@ export function initStorage() {
 
     if (!localStorage.getItem(QUIZ_RESULTS_KEY)) {
         writeJSON(QUIZ_RESULTS_KEY, []);
+    }
+
+    if (!localStorage.getItem(COURSE_LESSONS_KEY)) {
+        writeJSON(COURSE_LESSONS_KEY, []);
+    }
+
+    if (!localStorage.getItem(LESSON_PROGRESS_KEY)) {
+        writeJSON(LESSON_PROGRESS_KEY, []);
     }
 }
 
@@ -99,6 +125,14 @@ export async function syncFromCloud() {
 
     if (Array.isArray(result.quizResults)) {
         writeJSON(QUIZ_RESULTS_KEY, result.quizResults);
+    }
+
+    if (Array.isArray(result.courseLessons)) {
+        writeJSON(COURSE_LESSONS_KEY, result.courseLessons.map(normalizeCourseLesson));
+    }
+
+    if (Array.isArray(result.lessonProgress)) {
+        writeJSON(LESSON_PROGRESS_KEY, result.lessonProgress);
     }
 
     if (result.currentUser) {
@@ -184,6 +218,91 @@ export async function saveCourseNotes(courseNotes) {
 
     if (!result.success) {
         throw new Error(result.message || "Unable to save course notes.");
+    }
+
+    await syncFromCloud();
+
+    return result;
+}
+
+export function getCourseLessons() {
+    return readJSON(COURSE_LESSONS_KEY, [])
+        .map(normalizeCourseLesson)
+        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+}
+
+export async function saveCourseLessons(courseLessons) {
+    const cleanLessons = courseLessons
+        .map(normalizeCourseLesson)
+        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+
+    writeJSON(COURSE_LESSONS_KEY, cleanLessons);
+
+    const result = await api.saveCourseLessons(cleanLessons);
+
+    if (!result.success) {
+        throw new Error(result.message || "Unable to save learning lessons.");
+    }
+
+    await syncFromCloud();
+
+    return result;
+}
+
+export function getLessonProgress() {
+    return readJSON(LESSON_PROGRESS_KEY, []);
+}
+
+export async function saveLessonProgress(progress) {
+    const lessonId = progress?.lessonId;
+
+    if (!lessonId) {
+        throw new Error("Lesson ID is required.");
+    }
+
+    const localProgress = getLessonProgress();
+    const session = getSession();
+    const now = new Date().toISOString();
+
+    const localRow = {
+        id: progress.id || `local-progress-${Date.now()}`,
+        userId: session?.id || progress.userId || "",
+        username: session?.username || progress.username || "",
+        lessonId,
+        status: progress.status || "Completed",
+        completedAt: progress.completedAt || now,
+        updatedAt: now
+    };
+
+    const existingIndex = localProgress.findIndex(item =>
+        String(item.lessonId) === String(lessonId) &&
+        (
+            String(item.userId) === String(localRow.userId) ||
+            String(item.username).toLowerCase() === String(localRow.username).toLowerCase()
+        )
+    );
+
+    const nextProgress = [...localProgress];
+
+    if (existingIndex >= 0) {
+        nextProgress[existingIndex] = {
+            ...nextProgress[existingIndex],
+            ...localRow
+        };
+    } else {
+        nextProgress.push(localRow);
+    }
+
+    writeJSON(LESSON_PROGRESS_KEY, nextProgress);
+
+    const result = await api.saveLessonProgress({
+        lessonId,
+        status: localRow.status,
+        completedAt: localRow.completedAt
+    });
+
+    if (!result.success) {
+        throw new Error(result.message || "Unable to save lesson progress.");
     }
 
     await syncFromCloud();
@@ -291,6 +410,8 @@ export function clearAllLocalData() {
     localStorage.removeItem(FLASHCARDS_KEY);
     localStorage.removeItem(COURSE_NOTES_KEY);
     localStorage.removeItem(QUIZ_RESULTS_KEY);
+    localStorage.removeItem(COURSE_LESSONS_KEY);
+    localStorage.removeItem(LESSON_PROGRESS_KEY);
     localStorage.removeItem(SESSION_KEY);
 }
 
@@ -302,6 +423,8 @@ export function exportBackup() {
         questions: getQuestions(),
         flashcards: getFlashcards(),
         courseNotes: getCourseNotes(),
+        courseLessons: getCourseLessons(),
+        lessonProgress: getLessonProgress(),
         quizResults: getQuizResults()
     };
 }
@@ -330,6 +453,12 @@ export async function restoreBackup(backup) {
     if (Array.isArray(backup.courseNotes)) {
         writeJSON(COURSE_NOTES_KEY, backup.courseNotes);
         await api.saveCourseNotes(backup.courseNotes);
+    }
+
+    if (Array.isArray(backup.courseLessons)) {
+        const lessons = backup.courseLessons.map(normalizeCourseLesson);
+        writeJSON(COURSE_LESSONS_KEY, lessons);
+        await api.saveCourseLessons(lessons);
     }
 
     await syncFromCloud();
