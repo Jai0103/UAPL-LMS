@@ -1,21 +1,25 @@
 import { useMemo, useState } from "react";
 import {
     CheckCircle2,
+    ClipboardCheck,
     Edit3,
     Eye,
     FileVideo,
     Filter,
+    Link2,
     Loader2,
     Plus,
     Save,
     Search,
+    ShieldCheck,
     Trash2,
+    UploadCloud,
     Video,
     X
 } from "lucide-react";
-import { getCourseLessons, saveCourseLessons } from "../lib/storage";
+import { getCourseLessons, getLessonProgress, saveCourseLessons } from "../lib/storage";
 import { TRAINING_CATEGORIES, normalizeCategory } from "../lib/categoryAnalysis";
-import { getVideoEmbedUrl, getVideoOpenUrl } from "../lib/video";
+import { getGoogleDriveFileId, getVideoEmbedUrl, getVideoOpenUrl } from "../lib/video";
 import PremiumDialog from "../components/PremiumDialog";
 
 const emptyLesson = {
@@ -42,8 +46,16 @@ function normalizeLessonForm(form, fallbackOrder) {
     };
 }
 
+function getCompletionCount(progress, lessonId) {
+    return progress.filter(item =>
+        String(item.lessonId) === String(lessonId) &&
+        String(item.status || "").toLowerCase() === "completed"
+    ).length;
+}
+
 export default function LearningManager() {
     const [lessons, setLessons] = useState(getCourseLessons());
+    const [progress, setProgress] = useState(getLessonProgress());
     const [form, setForm] = useState(emptyLesson);
     const [editingId, setEditingId] = useState(null);
     const [selectedLesson, setSelectedLesson] = useState(null);
@@ -52,6 +64,12 @@ export default function LearningManager() {
     const [statusFilter, setStatusFilter] = useState("All");
     const [saving, setSaving] = useState(false);
     const [dialog, setDialog] = useState(null);
+    const driveFileId = getGoogleDriveFileId(form.videoUrl);
+    const activeLessonCount = lessons.filter(lesson => String(lesson.status || "Active") === "Active").length;
+    const draftLessonCount = lessons.length - activeLessonCount;
+    const totalCompletions = progress.filter(item =>
+        String(item.status || "").toLowerCase() === "completed"
+    ).length;
 
     const filteredLessons = useMemo(() => {
         const keyword = search.toLowerCase();
@@ -102,6 +120,7 @@ export default function LearningManager() {
 
             setLessons(sortedLessons);
             await saveCourseLessons(sortedLessons);
+            setProgress(getLessonProgress());
 
             showMessage("success", successTitle, successMessage);
         } catch (error) {
@@ -115,7 +134,9 @@ export default function LearningManager() {
         }
     }
 
-    async function saveLesson() {
+    async function saveLesson(options = {}) {
+        const keepAdding = !!options.keepAdding;
+
         if (!form.title.trim()) {
             showMessage(
                 "warning",
@@ -134,7 +155,18 @@ export default function LearningManager() {
             return;
         }
 
+        if (!getGoogleDriveFileId(form.videoUrl.trim())) {
+            showMessage(
+                "warning",
+                "Use a Google Drive File Link",
+                "Please paste a valid Google Drive file link, then make sure sharing is set to Anyone with the link can view."
+            );
+            return;
+        }
+
         const normalized = normalizeLessonForm(form, lessons.length + 1);
+        const wasEditing = !!editingId;
+        const nextOrder = Number(normalized.order || lessons.length + 1) + 1;
         let nextLessons;
 
         if (editingId) {
@@ -159,14 +191,24 @@ export default function LearningManager() {
             ];
         }
 
-        resetForm();
+        if (keepAdding && !wasEditing) {
+            setForm({
+                ...emptyLesson,
+                module: normalized.module,
+                order: nextOrder
+            });
+        } else {
+            resetForm();
+        }
 
         await persistLessons(
             nextLessons,
-            editingId ? "Lesson Updated" : "Lesson Added",
-            editingId
+            wasEditing ? "Lesson Updated" : "Lesson Added",
+            wasEditing
                 ? "The selected learning lesson has been updated."
-                : "The new video lesson has been added to the learning pathway."
+                : keepAdding
+                    ? "The lesson has been added. You can continue adding the next lesson."
+                    : "The new video lesson has been added to the learning pathway."
         );
     }
 
@@ -346,10 +388,97 @@ export default function LearningManager() {
                                 Published Lessons
                             </p>
                             <p className="mt-1 text-3xl font-black">
-                                {lessons.filter(lesson => String(lesson.status || "Active") === "Active").length}
+                                {activeLessonCount}
                             </p>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
+                    <p className="text-sm font-black text-slate-500 dark:text-slate-400">
+                        Total Lessons
+                    </p>
+                    <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+                        {lessons.length}
+                    </h2>
+                    <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {activeLessonCount} active, {draftLessonCount} hidden
+                    </p>
+                </div>
+
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
+                    <p className="text-sm font-black text-slate-500 dark:text-slate-400">
+                        Student Completions
+                    </p>
+                    <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+                        {totalCompletions}
+                    </h2>
+                    <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        Completion records synced from LessonProgress
+                    </p>
+                </div>
+
+                <div className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
+                    <p className="text-sm font-black text-slate-500 dark:text-slate-400">
+                        Publishing Health
+                    </p>
+                    <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
+                        {lessons.length ? Math.round((activeLessonCount / lessons.length) * 100) : 0}%
+                    </h2>
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                        <div
+                            className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
+                            style={{ width: `${lessons.length ? Math.round((activeLessonCount / lessons.length) * 100) : 0}%` }}
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <section className="rounded-3xl border border-white/60 bg-white/85 p-5 shadow-premium backdrop-blur dark:border-white/10 dark:bg-slate-900/75 sm:p-6">
+                <div className="grid gap-3 md:grid-cols-4">
+                    {[
+                        {
+                            icon: UploadCloud,
+                            title: "Upload",
+                            text: "Upload the video to Google Drive."
+                        },
+                        {
+                            icon: ShieldCheck,
+                            title: "Share",
+                            text: "Set permission to Anyone with the link can view."
+                        },
+                        {
+                            icon: Link2,
+                            title: "Paste",
+                            text: "Paste the Drive file link into the form."
+                        },
+                        {
+                            icon: ClipboardCheck,
+                            title: "Publish",
+                            text: "Set status to Active when ready for students."
+                        }
+                    ].map(step => {
+                        const Icon = step.icon;
+
+                        return (
+                            <div
+                                key={step.title}
+                                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950"
+                            >
+                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 dark:bg-sky-950 dark:text-sky-300">
+                                    <Icon className="h-5 w-5" />
+                                </div>
+                                <h3 className="mt-4 font-black text-slate-950 dark:text-white">
+                                    {step.title}
+                                </h3>
+                                <p className="mt-2 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
+                                    {step.text}
+                                </p>
+                            </div>
+                        );
+                    })}
                 </div>
             </section>
 
@@ -425,6 +554,17 @@ export default function LearningManager() {
                                 placeholder="https://drive.google.com/file/d/..."
                                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                             />
+                            {form.videoUrl && (
+                                <span className={`rounded-2xl border px-4 py-3 text-xs font-bold ${
+                                    driveFileId
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                        : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                                }`}>
+                                    {driveFileId
+                                        ? "Drive link detected. The lesson can be embedded inside the LMS."
+                                        : "This does not look like a Google Drive file link yet."}
+                                </span>
+                            )}
                         </label>
 
                         <label className="grid gap-2">
@@ -477,7 +617,7 @@ export default function LearningManager() {
                                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                             >
                                 <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
+                                <option value="Inactive">Draft / Hidden</option>
                             </select>
                         </label>
                     </div>
@@ -495,13 +635,25 @@ export default function LearningManager() {
 
                         <button
                             type="button"
-                            onClick={saveLesson}
+                            onClick={() => saveLesson()}
                             disabled={saving}
                             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             {saving ? "Saving..." : editingId ? "Update Lesson" : "Add Lesson"}
                         </button>
+
+                        {!editingId && (
+                            <button
+                                type="button"
+                                onClick={() => saveLesson({ keepAdding: true })}
+                                disabled={saving}
+                                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white shadow-lg shadow-slate-950/20 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                Save & Add Another
+                            </button>
+                        )}
                     </div>
                 </div>
             </section>
@@ -557,7 +709,7 @@ export default function LearningManager() {
                         >
                             <option value="All">All Status</option>
                             <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
+                            <option value="Inactive">Draft / Hidden</option>
                         </select>
                     </div>
                 </div>
@@ -577,17 +729,22 @@ export default function LearningManager() {
                                         {lesson.title}
                                     </h3>
                                     <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                        Order {lesson.order || "-"} {lesson.duration ? `• ${lesson.duration}` : ""}
+                                        Order {lesson.order || "-"} {lesson.duration ? `- ${lesson.duration}` : ""}
                                     </p>
                                 </div>
 
-                                <span className={`rounded-full px-3 py-1 text-xs font-black ${
+                                <div className="shrink-0 text-right">
+                                    <p className="mb-2 text-xs font-black text-emerald-700 dark:text-emerald-300">
+                                        {getCompletionCount(progress, lesson.id)} completions
+                                    </p>
+                                    <span className={`rounded-full px-3 py-1 text-xs font-black ${
                                     String(lesson.status || "Active") === "Active"
                                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                                         : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
                                 }`}>
-                                    {lesson.status || "Active"}
-                                </span>
+                                    {String(lesson.status || "Active") === "Active" ? "Active" : "Draft"}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="mt-4 grid grid-cols-4 gap-2">
@@ -639,6 +796,7 @@ export default function LearningManager() {
                                 <th className="border px-3 py-3 dark:border-slate-700">Lesson</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Module</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Duration</th>
+                                <th className="border px-3 py-3 dark:border-slate-700">Completions</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Status</th>
                                 <th className="border px-3 py-3 dark:border-slate-700">Actions</th>
                             </tr>
@@ -671,12 +829,18 @@ export default function LearningManager() {
                                     </td>
 
                                     <td className="border px-3 py-3 dark:border-slate-700">
+                                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                            {getCompletionCount(progress, lesson.id)}
+                                        </span>
+                                    </td>
+
+                                    <td className="border px-3 py-3 dark:border-slate-700">
                                         <span className={`rounded-full px-3 py-1 text-xs font-black ${
                                             String(lesson.status || "Active") === "Active"
                                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                                                 : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
                                         }`}>
-                                            {lesson.status || "Active"}
+                                            {String(lesson.status || "Active") === "Active" ? "Active" : "Draft"}
                                         </span>
                                     </td>
 
@@ -724,7 +888,7 @@ export default function LearningManager() {
 
                             {!filteredLessons.length && (
                                 <tr>
-                                    <td colSpan="6" className="p-8 text-center text-slate-500">
+                                    <td colSpan="7" className="p-8 text-center text-slate-500">
                                         No video lessons found.
                                     </td>
                                 </tr>
@@ -736,3 +900,5 @@ export default function LearningManager() {
         </div>
     );
 }
+
+
