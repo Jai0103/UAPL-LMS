@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+    BarChart3,
     ClipboardList,
     FileText,
+    FileVideo,
+    GraduationCap,
     Layers,
     LayoutDashboard,
     LogOut,
@@ -17,8 +20,9 @@ import {
 } from "lucide-react";
 import { clearSession } from "../lib/storage";
 import PremiumDialog from "./PremiumDialog";
-import logo from "/logo.png";
-import { BarChart3 } from "lucide-react";
+
+const logo = `${import.meta.env.BASE_URL}logo.png`;
+
 const navItems = [
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     {
@@ -27,11 +31,13 @@ const navItems = [
     icon: BarChart3,
     adminOnly: true
 },
+    { label: "Learning", path: "/learning", icon: GraduationCap },
     { label: "Quiz Mode", path: "/quiz", icon: ClipboardList },
     { label: "Flashcards", path: "/flashcards", icon: Layers },
     { label: "Course Notes", path: "/course-notes", icon: FileText },
     { label: "Quiz Manager", path: "/quiz-manager", icon: Settings2, adminOnly: true },
     {label: "Flashcard Manager", path: "/flashcard-manager", icon: Layers, adminOnly: true },
+    { label: "Learning Manager", path: "/learning-manager", icon: FileVideo, adminOnly: true },
     { label: "User Management", path: "/users", icon: Users, adminOnly: true },
     { label: "Import & Backup", path: "/import-backup", icon: UploadCloud, adminOnly: true },
     { label: "Settings", path: "/settings", icon: Settings }
