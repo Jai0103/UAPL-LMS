@@ -310,7 +310,14 @@ export default function App() {
                 }
             >
                 <Route path="/dashboard" element={<Dashboard session={session} />} />
-                <Route path="/learning" element={<Learning session={session} />} />
+                <Route
+    path="/learning"
+    element={
+        <AdminRoute session={session}>
+            <Learning session={session} />
+        </AdminRoute>
+    }
+/>
                 <Route path="/quiz" element={<Quiz session={session} />} />
                 <Route path="/flashcards" element={<Flashcards session={session} />} />
                 <Route path="/course-notes" element={<CourseNotes session={session} />} />
