@@ -76,6 +76,12 @@ export const api = {
     saveCourseNotes: courseNotes =>
         request("saveCourseNotes", { courseNotes }),
 
+    saveCourseLessons: courseLessons =>
+        request("saveCourseLessons", { courseLessons }),
+
+    saveLessonProgress: progress =>
+        request("saveLessonProgress", progress),
+
     submitQuizResult: result =>
         request("submitQuizResult", result),
 
