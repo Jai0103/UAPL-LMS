@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Eye,
     Layers,
@@ -8,7 +8,7 @@ import {
     Trash2,
     X
 } from "lucide-react";
-import { getFlashcards, saveFlashcards } from "../lib/storage";
+import { DATA_UPDATED_EVENT, getFlashcards, saveFlashcards } from "../lib/storage";
 import PremiumDialog from "../components/PremiumDialog";
 
 const emptyFlashcard = {
@@ -26,6 +26,24 @@ export default function FlashcardManager() {
     const [form, setForm] = useState(emptyFlashcard);
     const [selectedCard, setSelectedCard] = useState(null);
     const [dialog, setDialog] = useState(null);
+
+    useEffect(() => {
+        function refreshFlashcardsFromCache() {
+            const nextFlashcards = getFlashcards();
+
+            setFlashcards(nextFlashcards);
+            setSelectedCard(currentCard => {
+                if (!currentCard) return currentCard;
+                return nextFlashcards.find(card => String(card.id) === String(currentCard.id)) || null;
+            });
+        }
+
+        window.addEventListener(DATA_UPDATED_EVENT, refreshFlashcardsFromCache);
+
+        return () => {
+            window.removeEventListener(DATA_UPDATED_EVENT, refreshFlashcardsFromCache);
+        };
+    }, []);
 
     const filteredFlashcards = useMemo(() => {
         const keyword = search.toLowerCase();
