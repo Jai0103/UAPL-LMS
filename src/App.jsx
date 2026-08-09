@@ -12,6 +12,8 @@ import {
 } from "./lib/storage";
 
 import Layout from "./components/Layout";
+import PwaManager from "./components/PwaManager";
+
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -44,6 +46,7 @@ export default function App() {
     const [theme, setTheme] = useState("light");
     const [isBooting, setIsBooting] = useState(true);
     const [bootMessage] = useState("Preparing dashboard...");
+
     const validationRef = useRef({
         running: false,
         lastRun: 0
@@ -212,7 +215,11 @@ export default function App() {
             "expiryDate",
             "createdAt",
             "lastLogin"
-        ].some(key => String(previousSession[key] || "") !== String(nextSession[key] || ""));
+        ].some(
+            key =>
+                String(previousSession[key] || "") !==
+                String(nextSession[key] || "")
+        );
     }
 
     async function validateCurrentSession(options = {}) {
@@ -240,7 +247,9 @@ export default function App() {
 
             if (!result.success) {
                 if (shouldForceLogoutFromMessage(result.message)) {
-                    forceLogout(result.message || "Your session has expired. Please sign in again.");
+                    forceLogout(
+                        result.message || "Your session has expired. Please sign in again."
+                    );
                 } else {
                     console.warn("Session validation skipped:", result.message);
                 }
@@ -273,6 +282,7 @@ export default function App() {
 
             setSession(previousSession => {
                 if (!previousSession) return previousSession;
+
                 return hasSessionProfileChanged(previousSession, nextSession)
                     ? nextSession
                     : previousSession;
@@ -305,133 +315,139 @@ export default function App() {
     }
 
     return (
-        <Routes>
-            <Route
-                path="/login"
-                element={
-                    session ? (
-                        <Navigate to="/dashboard" replace />
-                    ) : (
-                        <Login onLogin={handleLogin} />
-                    )
-                }
-            />
+        <>
+            <PwaManager />
 
-            <Route
-                path="/register"
-                element={
-                    session ? (
-                        <Navigate to="/dashboard" replace />
-                    ) : (
-                        <Register />
-                    )
-                }
-            />
-
-            <Route
-                path="/forgot-password"
-                element={
-                    session ? (
-                        <Navigate to="/dashboard" replace />
-                    ) : (
-                        <ForgotPassword />
-                    )
-                }
-            />
-
-            <Route
-                path="/"
-                element={
-                    session ? (
-                        <Navigate to="/dashboard" replace />
-                    ) : (
-                        <Navigate to="/login" replace />
-                    )
-                }
-            />
-
-            <Route
-                element={
-                    <ProtectedRoute session={session}>
-                        <Layout
-                            session={session}
-                            theme={theme}
-                            onThemeToggle={toggleTheme}
-                            onLogout={handleLogout}
-                        />
-                    </ProtectedRoute>
-                }
-            >
-                <Route path="/dashboard" element={<Dashboard session={session} />} />
+            <Routes>
                 <Route
-                    path="/learning"
+                    path="/login"
                     element={
-                        <AdminRoute session={session}>
-                            <Learning session={session} />
-                        </AdminRoute>
-                    }
-                />
-                <Route path="/quiz" element={<Quiz session={session} />} />
-                <Route path="/flashcards" element={<Flashcards session={session} />} />
-                <Route path="/course-notes" element={<CourseNotes session={session} />} />
-                <Route path="/settings" element={<Settings session={session} />} />
-
-                <Route
-                    path="/quiz-manager"
-                    element={
-                        <AdminRoute session={session}>
-                            <QuizManager session={session} />
-                        </AdminRoute>
+                        session ? (
+                            <Navigate to="/dashboard" replace />
+                        ) : (
+                            <Login onLogin={handleLogin} />
+                        )
                     }
                 />
 
                 <Route
-                    path="/flashcard-manager"
+                    path="/register"
                     element={
-                        <AdminRoute session={session}>
-                            <FlashcardManager />
-                        </AdminRoute>
+                        session ? (
+                            <Navigate to="/dashboard" replace />
+                        ) : (
+                            <Register />
+                        )
                     }
                 />
 
                 <Route
-                    path="/learning-manager"
+                    path="/forgot-password"
                     element={
-                        <AdminRoute session={session}>
-                            <LearningManager />
-                        </AdminRoute>
+                        session ? (
+                            <Navigate to="/dashboard" replace />
+                        ) : (
+                            <ForgotPassword />
+                        )
                     }
                 />
 
                 <Route
-                    path="/quiz-results"
+                    path="/"
                     element={
-                        <AdminRoute session={session}>
-                            <QuizResults />
-                        </AdminRoute>
+                        session ? (
+                            <Navigate to="/dashboard" replace />
+                        ) : (
+                            <Navigate to="/login" replace />
+                        )
                     }
                 />
 
                 <Route
-                    path="/users"
                     element={
-                        <AdminRoute session={session}>
-                            <UserManagement session={session} />
-                        </AdminRoute>
+                        <ProtectedRoute session={session}>
+                            <Layout
+                                session={session}
+                                theme={theme}
+                                onThemeToggle={toggleTheme}
+                                onLogout={handleLogout}
+                            />
+                        </ProtectedRoute>
                     }
-                />
+                >
+                    <Route path="/dashboard" element={<Dashboard session={session} />} />
 
-                <Route
-                    path="/import-backup"
-                    element={
-                        <AdminRoute session={session}>
-                            <ImportBackup />
-                        </AdminRoute>
-                    }
-                />
-            </Route>
+                    <Route
+                        path="/learning"
+                        element={
+                            <AdminRoute session={session}>
+                                <Learning session={session} />
+                            </AdminRoute>
+                        }
+                    />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+                    <Route path="/quiz" element={<Quiz session={session} />} />
+                    <Route path="/flashcards" element={<Flashcards session={session} />} />
+                    <Route path="/course-notes" element={<CourseNotes session={session} />} />
+                    <Route path="/settings" element={<Settings session={session} />} />
+
+                    <Route
+                        path="/quiz-manager"
+                        element={
+                            <AdminRoute session={session}>
+                                <QuizManager session={session} />
+                            </AdminRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/flashcard-manager"
+                        element={
+                            <AdminRoute session={session}>
+                                <FlashcardManager />
+                            </AdminRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/learning-manager"
+                        element={
+                            <AdminRoute session={session}>
+                                <LearningManager />
+                            </AdminRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/quiz-results"
+                        element={
+                            <AdminRoute session={session}>
+                                <QuizResults />
+                            </AdminRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/users"
+                        element={
+                            <AdminRoute session={session}>
+                                <UserManagement session={session} />
+                            </AdminRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/import-backup"
+                        element={
+                            <AdminRoute session={session}>
+                                <ImportBackup />
+                            </AdminRoute>
+                        }
+                    />
+                </Route>
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </>
     );
 }
