@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileText, Plus, Trash2 } from "lucide-react";
-import { getCourseNotes, saveCourseNotes } from "../lib/storage";
+import { DATA_UPDATED_EVENT, getCourseNotes, saveCourseNotes } from "../lib/storage";
 import PremiumDialog from "../components/PremiumDialog";
 
 export default function CourseNotes({ session }) {
@@ -10,6 +10,24 @@ export default function CourseNotes({ session }) {
     const [form, setForm] = useState({ title: "", url: "" });
 
     const isAdmin = session?.role === "admin";
+
+    useEffect(() => {
+        function refreshNotesFromCache() {
+            const nextNotes = getCourseNotes();
+
+            setNotes(nextNotes);
+            setSelectedNote(currentNote => {
+                if (!currentNote) return currentNote;
+                return nextNotes.find(note => String(note.id) === String(currentNote.id)) || null;
+            });
+        }
+
+        window.addEventListener(DATA_UPDATED_EVENT, refreshNotesFromCache);
+
+        return () => {
+            window.removeEventListener(DATA_UPDATED_EVENT, refreshNotesFromCache);
+        };
+    }, []);
 
     function closeDialog() {
         setDialog(null);
