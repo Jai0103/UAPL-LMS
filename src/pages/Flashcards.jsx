@@ -1,14 +1,40 @@
 import { ArrowLeft, ArrowRight, RotateCcw } from "lucide-react";
-import { useState } from "react";
-import { getQuestions } from "../lib/storage";
+import { useEffect, useState } from "react";
+import { DATA_UPDATED_EVENT, getQuestions } from "../lib/storage";
 
 export default function Flashcards() {
-  const [questions] = useState(getQuestions());
+  const [questions, setQuestions] = useState(getQuestions());
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
   const question = questions[index];
   const progress = ((index + 1) / questions.length) * 100;
+
+  useEffect(() => {
+    function refreshQuestionsFromCache() {
+      const nextQuestions = getQuestions();
+
+      setQuestions(nextQuestions);
+      setIndex(currentIndex => Math.min(currentIndex, Math.max(nextQuestions.length - 1, 0)));
+    }
+
+    window.addEventListener(DATA_UPDATED_EVENT, refreshQuestionsFromCache);
+
+    return () => {
+      window.removeEventListener(DATA_UPDATED_EVENT, refreshQuestionsFromCache);
+    };
+  }, []);
+
+  if (!question) {
+    return (
+      <section className="card text-center">
+        <h1 className="text-2xl font-black">No flashcards available</h1>
+        <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+          Flashcards will appear once the question bank has been synced.
+        </p>
+      </section>
+    );
+  }
 
   function next() {
     setIndex(index < questions.length - 1 ? index + 1 : 0);
