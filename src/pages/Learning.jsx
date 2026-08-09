@@ -16,13 +16,14 @@ import {
     Sparkles
 } from "lucide-react";
 import {
+    DATA_UPDATED_EVENT,
     getCourseLessons,
     getLessonProgress,
     saveLessonProgress,
     syncFromCloud
 } from "../lib/storage";
 import { TRAINING_CATEGORIES, normalizeCategory } from "../lib/categoryAnalysis";
-import { getVideoStreamUrl } from "../lib/video";
+import { getVideoEmbedUrl } from "../lib/video";
 import PremiumDialog from "../components/PremiumDialog";
 
 const MODULE_COLORS = {
@@ -90,6 +91,22 @@ export default function Learning({ session }) {
     const [saving, setSaving] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [dialog, setDialog] = useState(null);
+
+    useEffect(() => {
+        function refreshLearningFromCache() {
+            const nextLessons = getCourseLessons()
+                .filter(lesson => String(lesson.status || "Active") !== "Inactive");
+
+            setLessons(nextLessons);
+            setProgress(getLessonProgress());
+        }
+
+        window.addEventListener(DATA_UPDATED_EVENT, refreshLearningFromCache);
+
+        return () => {
+            window.removeEventListener(DATA_UPDATED_EVENT, refreshLearningFromCache);
+        };
+    }, []);
 
     useEffect(() => {
         if (!lessons.length) return;
@@ -471,19 +488,13 @@ export default function Learning({ session }) {
                                 <>
                                     <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
                                         {selectedLesson.videoUrl ? (
-                                            <video
-                                                key={selectedLesson.id}
-                                                src={getVideoStreamUrl(selectedLesson.videoUrl)}
+                                            <iframe
+                                                src={getVideoEmbedUrl(selectedLesson.videoUrl)}
                                                 title={selectedLesson.title}
-                                                controls
-                                                controlsList="nodownload noremoteplayback"
-                                                disablePictureInPicture
-                                                playsInline
-                                                preload="metadata"
-                                                className="h-full w-full bg-slate-950 object-contain"
-                                            >
-                                                Your browser does not support the video player.
-                                            </video>
+                                                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                                                allowFullScreen
+                                                className="h-full w-full"
+                                            />
                                         ) : (
                                             <div className="flex h-full items-center justify-center p-8 text-center text-slate-300">
                                                 <div>
