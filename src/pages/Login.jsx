@@ -175,7 +175,7 @@ export default function Login({ onLogin }) {
 
             setTimeout(() => {
                 onLogin(session);
-            }, 700);
+            }, 250);
         } catch (error) {
             setMessage({
                 type: "warning",
