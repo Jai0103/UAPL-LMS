@@ -12,8 +12,6 @@ import {
 } from "./lib/storage";
 
 import Layout from "./components/Layout";
-import PwaManager from "./components/PwaManager";
-
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -46,7 +44,6 @@ export default function App() {
     const [theme, setTheme] = useState("light");
     const [isBooting, setIsBooting] = useState(true);
     const [bootMessage] = useState("Preparing dashboard...");
-
     const validationRef = useRef({
         running: false,
         lastRun: 0
@@ -64,7 +61,7 @@ export default function App() {
         if (savedSession?.sessionToken) {
             setSession(savedSession);
 
-            syncFromCloud().catch(error => {
+            syncFromCloud({ maxAgeMs: 90000 }).catch(error => {
                 console.error("Background sync failed:", error);
             });
         } else {
@@ -78,7 +75,9 @@ export default function App() {
     useEffect(() => {
         if (!session) return;
 
-        validateCurrentSession({ force: true });
+        const firstValidation = setTimeout(() => {
+            validateCurrentSession({ force: true });
+        }, 12000);
 
         const interval = setInterval(() => {
             validateCurrentSession({ minIntervalMs: 55000 });
@@ -98,6 +97,7 @@ export default function App() {
         document.addEventListener("visibilitychange", handleVisibilityChange);
 
         return () => {
+            clearTimeout(firstValidation);
             clearInterval(interval);
             window.removeEventListener("focus", handleFocus);
             document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -151,7 +151,7 @@ export default function App() {
     function handleLogin(nextSession) {
         setSession(nextSession);
 
-        syncFromCloud().catch(error => {
+        syncFromCloud({ maxAgeMs: 90000 }).catch(error => {
             console.error("Background sync failed:", error);
         });
     }
@@ -215,11 +215,7 @@ export default function App() {
             "expiryDate",
             "createdAt",
             "lastLogin"
-        ].some(
-            key =>
-                String(previousSession[key] || "") !==
-                String(nextSession[key] || "")
-        );
+        ].some(key => String(previousSession[key] || "") !== String(nextSession[key] || ""));
     }
 
     async function validateCurrentSession(options = {}) {
@@ -247,9 +243,7 @@ export default function App() {
 
             if (!result.success) {
                 if (shouldForceLogoutFromMessage(result.message)) {
-                    forceLogout(
-                        result.message || "Your session has expired. Please sign in again."
-                    );
+                    forceLogout(result.message || "Your session has expired. Please sign in again.");
                 } else {
                     console.warn("Session validation skipped:", result.message);
                 }
@@ -282,7 +276,6 @@ export default function App() {
 
             setSession(previousSession => {
                 if (!previousSession) return previousSession;
-
                 return hasSessionProfileChanged(previousSession, nextSession)
                     ? nextSession
                     : previousSession;
@@ -315,139 +308,133 @@ export default function App() {
     }
 
     return (
-        <>
-            <PwaManager />
+        <Routes>
+            <Route
+                path="/login"
+                element={
+                    session ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <Login onLogin={handleLogin} />
+                    )
+                }
+            />
 
-            <Routes>
+            <Route
+                path="/register"
+                element={
+                    session ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <Register />
+                    )
+                }
+            />
+
+            <Route
+                path="/forgot-password"
+                element={
+                    session ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <ForgotPassword />
+                    )
+                }
+            />
+
+            <Route
+                path="/"
+                element={
+                    session ? (
+                        <Navigate to="/dashboard" replace />
+                    ) : (
+                        <Navigate to="/login" replace />
+                    )
+                }
+            />
+
+            <Route
+                element={
+                    <ProtectedRoute session={session}>
+                        <Layout
+                            session={session}
+                            theme={theme}
+                            onThemeToggle={toggleTheme}
+                            onLogout={handleLogout}
+                        />
+                    </ProtectedRoute>
+                }
+            >
+                <Route path="/dashboard" element={<Dashboard session={session} />} />
                 <Route
-                    path="/login"
+                    path="/learning"
                     element={
-                        session ? (
-                            <Navigate to="/dashboard" replace />
-                        ) : (
-                            <Login onLogin={handleLogin} />
-                        )
+                        <AdminRoute session={session}>
+                            <Learning session={session} />
+                        </AdminRoute>
+                    }
+                />
+                <Route path="/quiz" element={<Quiz session={session} />} />
+                <Route path="/flashcards" element={<Flashcards session={session} />} />
+                <Route path="/course-notes" element={<CourseNotes session={session} />} />
+                <Route path="/settings" element={<Settings session={session} />} />
+
+                <Route
+                    path="/quiz-manager"
+                    element={
+                        <AdminRoute session={session}>
+                            <QuizManager session={session} />
+                        </AdminRoute>
                     }
                 />
 
                 <Route
-                    path="/register"
+                    path="/flashcard-manager"
                     element={
-                        session ? (
-                            <Navigate to="/dashboard" replace />
-                        ) : (
-                            <Register />
-                        )
+                        <AdminRoute session={session}>
+                            <FlashcardManager />
+                        </AdminRoute>
                     }
                 />
 
                 <Route
-                    path="/forgot-password"
+                    path="/learning-manager"
                     element={
-                        session ? (
-                            <Navigate to="/dashboard" replace />
-                        ) : (
-                            <ForgotPassword />
-                        )
+                        <AdminRoute session={session}>
+                            <LearningManager />
+                        </AdminRoute>
                     }
                 />
 
                 <Route
-                    path="/"
+                    path="/quiz-results"
                     element={
-                        session ? (
-                            <Navigate to="/dashboard" replace />
-                        ) : (
-                            <Navigate to="/login" replace />
-                        )
+                        <AdminRoute session={session}>
+                            <QuizResults />
+                        </AdminRoute>
                     }
                 />
 
                 <Route
+                    path="/users"
                     element={
-                        <ProtectedRoute session={session}>
-                            <Layout
-                                session={session}
-                                theme={theme}
-                                onThemeToggle={toggleTheme}
-                                onLogout={handleLogout}
-                            />
-                        </ProtectedRoute>
+                        <AdminRoute session={session}>
+                            <UserManagement session={session} />
+                        </AdminRoute>
                     }
-                >
-                    <Route path="/dashboard" element={<Dashboard session={session} />} />
+                />
 
-                    <Route
-                        path="/learning"
-                        element={
-                            <AdminRoute session={session}>
-                                <Learning session={session} />
-                            </AdminRoute>
-                        }
-                    />
+                <Route
+                    path="/import-backup"
+                    element={
+                        <AdminRoute session={session}>
+                            <ImportBackup />
+                        </AdminRoute>
+                    }
+                />
+            </Route>
 
-                    <Route path="/quiz" element={<Quiz session={session} />} />
-                    <Route path="/flashcards" element={<Flashcards session={session} />} />
-                    <Route path="/course-notes" element={<CourseNotes session={session} />} />
-                    <Route path="/settings" element={<Settings session={session} />} />
-
-                    <Route
-                        path="/quiz-manager"
-                        element={
-                            <AdminRoute session={session}>
-                                <QuizManager session={session} />
-                            </AdminRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/flashcard-manager"
-                        element={
-                            <AdminRoute session={session}>
-                                <FlashcardManager />
-                            </AdminRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/learning-manager"
-                        element={
-                            <AdminRoute session={session}>
-                                <LearningManager />
-                            </AdminRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/quiz-results"
-                        element={
-                            <AdminRoute session={session}>
-                                <QuizResults />
-                            </AdminRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/users"
-                        element={
-                            <AdminRoute session={session}>
-                                <UserManagement session={session} />
-                            </AdminRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/import-backup"
-                        element={
-                            <AdminRoute session={session}>
-                                <ImportBackup />
-                            </AdminRoute>
-                        }
-                    />
-                </Route>
-
-                <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-        </>
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
     );
 }
