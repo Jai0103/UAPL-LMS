@@ -17,6 +17,7 @@ import {
     XCircle
 } from "lucide-react";
 import {
+    DATA_UPDATED_EVENT,
     approveAndSendActivationEmail,
     getUsers,
     saveUsers,
@@ -238,22 +239,28 @@ export default function Users() {
     useEffect(() => {
         let mounted = true;
 
-        Promise.resolve(getUsers())
-            .then(data => {
-                if (!mounted) return;
-                setUsers(Array.isArray(data) ? data.map(normalizeUser) : []);
-            })
-            .catch(error => {
-                setDialog({
-                    type: "error",
-                    title: "Unable to load users",
-                    message: error.message || "The user records could not be loaded.",
-                    confirmText: "OK"
+        function refreshUsersFromCache() {
+            return Promise.resolve(getUsers())
+                .then(data => {
+                    if (!mounted) return;
+                    setUsers(Array.isArray(data) ? data.map(normalizeUser) : []);
                 });
+        }
+
+        refreshUsersFromCache().catch(error => {
+            setDialog({
+                type: "error",
+                title: "Unable to load users",
+                message: error.message || "The user records could not be loaded.",
+                confirmText: "OK"
             });
+        });
+
+        window.addEventListener(DATA_UPDATED_EVENT, refreshUsersFromCache);
 
         return () => {
             mounted = false;
+            window.removeEventListener(DATA_UPDATED_EVENT, refreshUsersFromCache);
         };
     }, []);
 
