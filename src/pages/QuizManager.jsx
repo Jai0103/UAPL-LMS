@@ -10,7 +10,7 @@ import {
     Trash2,
     Upload
 } from "lucide-react";
-import { getQuestions, saveQuestions } from "../lib/storage";
+import { DATA_UPDATED_EVENT, getQuestions, saveQuestions } from "../lib/storage";
 import { TRAINING_CATEGORIES, normalizeCategory } from "../lib/categoryAnalysis";
 
 function createId() {
@@ -107,9 +107,9 @@ export default function QuizManager() {
     const [notice, setNotice] = useState("");
 
     useEffect(() => {
-        async function loadQuestions() {
+        function loadQuestions() {
             try {
-                const data = await Promise.resolve(getQuestions());
+                const data = getQuestions();
                 setQuestions((data || []).map(normalizeQuestion));
             } finally {
                 setLoading(false);
@@ -117,6 +117,11 @@ export default function QuizManager() {
         }
 
         loadQuestions();
+        window.addEventListener(DATA_UPDATED_EVENT, loadQuestions);
+
+        return () => {
+            window.removeEventListener(DATA_UPDATED_EVENT, loadQuestions);
+        };
     }, []);
 
     const filteredQuestions = useMemo(() => {
