@@ -7,12 +7,12 @@ import {
     CalendarClock,
     ClipboardCheck,
     FileText,
-    Loader2,
     Target,
     TrendingUp,
     Users
 } from "lucide-react";
 import {
+    DATA_UPDATED_EVENT,
     getCourseNotes,
     getFlashcards,
     getQuestions,
@@ -343,56 +343,39 @@ function StudentProgress({ session, quizResults }) {
     );
 }
 
+function readDashboardData() {
+    return {
+        questions: getQuestions() || [],
+        flashcards: getFlashcards() || [],
+        users: getUsers() || [],
+        courseNotes: getCourseNotes() || [],
+        quizResults: getQuizResults() || []
+    };
+}
+
 export default function Dashboard({ session }) {
-    const [loading, setLoading] = useState(true);
-    const [questions, setQuestions] = useState([]);
-    const [flashcards, setFlashcards] = useState([]);
-    const [users, setUsers] = useState([]);
-    const [courseNotes, setCourseNotes] = useState([]);
-    const [quizResults, setQuizResults] = useState([]);
+    const [dashboardData, setDashboardData] = useState(readDashboardData);
+
+    const {
+        questions,
+        flashcards,
+        users,
+        courseNotes,
+        quizResults
+    } = dashboardData;
 
     useEffect(() => {
-        async function loadDashboard() {
-            try {
-                const [
-                    questionData,
-                    flashcardData,
-                    userData,
-                    noteData,
-                    resultData
-                ] = await Promise.all([
-                    Promise.resolve(getQuestions()),
-                    Promise.resolve(getFlashcards()),
-                    Promise.resolve(getUsers()),
-                    Promise.resolve(getCourseNotes()),
-                    Promise.resolve(getQuizResults())
-                ]);
-
-                setQuestions(questionData || []);
-                setFlashcards(flashcardData || []);
-                setUsers(userData || []);
-                setCourseNotes(noteData || []);
-                setQuizResults(resultData || []);
-            } finally {
-                setLoading(false);
-            }
+        function refreshFromCache() {
+            setDashboardData(readDashboardData());
         }
 
-        loadDashboard();
-    }, []);
+        refreshFromCache();
+        window.addEventListener(DATA_UPDATED_EVENT, refreshFromCache);
 
-    if (loading) {
-        return (
-            <div className="flex min-h-[60vh] items-center justify-center">
-                <div className="rounded-3xl border border-white/70 bg-white/85 p-8 text-center shadow-xl dark:border-slate-800 dark:bg-slate-900/80">
-                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-sky-600" />
-                    <p className="mt-4 text-sm font-bold text-slate-600 dark:text-slate-300">
-                        Preparing dashboard...
-                    </p>
-                </div>
-            </div>
-        );
-    }
+        return () => {
+            window.removeEventListener(DATA_UPDATED_EVENT, refreshFromCache);
+        };
+    }, []);
 
     if (!isAdmin(session)) {
         return (
