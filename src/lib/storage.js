@@ -11,6 +11,11 @@ const COURSE_LESSONS_KEY = "uapl_lms_course_lessons_v1";
 const LESSON_PROGRESS_KEY = "uapl_lms_lesson_progress_v1";
 const SESSION_KEY = "uapl_lms_session_v3";
 const THEME_KEY = "uapl_lms_theme_v1";
+const SYNC_META_KEY = "uapl_lms_sync_meta_v1";
+export const DATA_UPDATED_EVENT = "uapl:data-updated";
+const DEFAULT_SYNC_MAX_AGE_MS = 60000;
+
+let activeSyncPromise = null;
 
 function readJSON(key, fallback) {
     try {
@@ -23,6 +28,44 @@ function readJSON(key, fallback) {
 
 function writeJSON(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
+}
+
+function notifyDataUpdated(source = "local") {
+    if (typeof window === "undefined") return;
+
+    window.dispatchEvent(
+        new CustomEvent(DATA_UPDATED_EVENT, {
+            detail: {
+                source,
+                updatedAt: new Date().toISOString()
+            }
+        })
+    );
+}
+
+function readSyncMeta() {
+    return readJSON(SYNC_META_KEY, {
+        lastSyncedAt: 0
+    });
+}
+
+function markSynced() {
+    writeJSON(SYNC_META_KEY, {
+        lastSyncedAt: Date.now()
+    });
+}
+
+function shouldUseFreshCache(maxAgeMs) {
+    const meta = readSyncMeta();
+    const lastSyncedAt = Number(meta?.lastSyncedAt || 0);
+
+    return lastSyncedAt > 0 && Date.now() - lastSyncedAt < maxAgeMs;
+}
+
+function refreshInBackground() {
+    syncFromCloud({ force: true }).catch(error => {
+        console.error("Background sync failed:", error);
+    });
 }
 
 function normalizeQuestion(question, index) {
@@ -100,55 +143,81 @@ export function initStorage() {
     }
 }
 
-export async function syncFromCloud() {
-    const result = await api.getBootstrap();
+export async function syncFromCloud(options = {}) {
+    const {
+        force = false,
+        maxAgeMs = DEFAULT_SYNC_MAX_AGE_MS
+    } = options;
 
-    if (!result.success) {
-        throw new Error(result.message || "Unable to sync from training database.");
+    if (!force && shouldUseFreshCache(maxAgeMs)) {
+        return {
+            success: true,
+            cached: true,
+            message: "Using recently synced local training data."
+        };
     }
 
-    if (Array.isArray(result.users)) {
-        writeJSON(USERS_KEY, result.users);
+    if (activeSyncPromise) {
+        return activeSyncPromise;
     }
 
-    if (Array.isArray(result.questions)) {
-        writeJSON(QUESTIONS_KEY, result.questions.map(normalizeQuestion));
-    }
+    activeSyncPromise = api.getBootstrap()
+        .then(result => {
+            if (!result.success) {
+                throw new Error(result.message || "Unable to sync from training database.");
+            }
 
-    if (Array.isArray(result.flashcards)) {
-        writeJSON(FLASHCARDS_KEY, result.flashcards);
-    }
+            if (Array.isArray(result.users)) {
+                writeJSON(USERS_KEY, result.users);
+            }
 
-    if (Array.isArray(result.courseNotes)) {
-        writeJSON(COURSE_NOTES_KEY, result.courseNotes);
-    }
+            if (Array.isArray(result.questions)) {
+                writeJSON(QUESTIONS_KEY, result.questions.map(normalizeQuestion));
+            }
 
-    if (Array.isArray(result.quizResults)) {
-        writeJSON(QUIZ_RESULTS_KEY, result.quizResults);
-    }
+            if (Array.isArray(result.flashcards)) {
+                writeJSON(FLASHCARDS_KEY, result.flashcards);
+            }
 
-    if (Array.isArray(result.courseLessons)) {
-        writeJSON(COURSE_LESSONS_KEY, result.courseLessons.map(normalizeCourseLesson));
-    }
+            if (Array.isArray(result.courseNotes)) {
+                writeJSON(COURSE_NOTES_KEY, result.courseNotes);
+            }
 
-    if (Array.isArray(result.lessonProgress)) {
-        writeJSON(LESSON_PROGRESS_KEY, result.lessonProgress);
-    }
+            if (Array.isArray(result.quizResults)) {
+                writeJSON(QUIZ_RESULTS_KEY, result.quizResults);
+            }
 
-    if (result.currentUser) {
-        const currentSession = getSession();
+            if (Array.isArray(result.courseLessons)) {
+                writeJSON(COURSE_LESSONS_KEY, result.courseLessons.map(normalizeCourseLesson));
+            }
 
-        if (currentSession) {
-            saveSession({
-                ...currentSession,
-                ...result.currentUser,
-                sessionToken: currentSession.sessionToken,
-                sessionExpiresAt: currentSession.sessionExpiresAt
-            });
-        }
-    }
+            if (Array.isArray(result.lessonProgress)) {
+                writeJSON(LESSON_PROGRESS_KEY, result.lessonProgress);
+            }
 
-    return result;
+            if (result.currentUser) {
+                const currentSession = getSession();
+
+                if (currentSession) {
+                    saveSession({
+                        ...currentSession,
+                        ...result.currentUser,
+                        sessionToken: currentSession.sessionToken,
+                        sessionExpiresAt: currentSession.sessionExpiresAt
+                    });
+                }
+            }
+
+            markSynced();
+            notifyDataUpdated("cloud");
+
+            return result;
+        })
+        .finally(() => {
+            activeSyncPromise = null;
+        });
+
+    return activeSyncPromise;
 }
 
 export function getUsers() {
@@ -157,6 +226,7 @@ export function getUsers() {
 
 export async function saveUsers(users) {
     writeJSON(USERS_KEY, users);
+    notifyDataUpdated("local");
 
     const result = await api.saveUsers(users);
 
@@ -164,7 +234,7 @@ export async function saveUsers(users) {
         throw new Error(result.message || "Unable to save users.");
     }
 
-    await syncFromCloud();
+    refreshInBackground();
 
     return result;
 }
@@ -177,6 +247,7 @@ export async function saveQuestions(questions) {
     const cleanQuestions = questions.map(normalizeQuestion);
 
     writeJSON(QUESTIONS_KEY, cleanQuestions);
+    notifyDataUpdated("local");
 
     const result = await api.saveQuestions(cleanQuestions);
 
@@ -184,7 +255,7 @@ export async function saveQuestions(questions) {
         throw new Error(result.message || "Unable to save questions.");
     }
 
-    await syncFromCloud();
+    refreshInBackground();
 
     return result;
 }
@@ -195,6 +266,7 @@ export function getFlashcards() {
 
 export async function saveFlashcards(flashcards) {
     writeJSON(FLASHCARDS_KEY, flashcards);
+    notifyDataUpdated("local");
 
     const result = await api.saveFlashcards(flashcards);
 
@@ -202,7 +274,7 @@ export async function saveFlashcards(flashcards) {
         throw new Error(result.message || "Unable to save flashcards.");
     }
 
-    await syncFromCloud();
+    refreshInBackground();
 
     return result;
 }
@@ -213,6 +285,7 @@ export function getCourseNotes() {
 
 export async function saveCourseNotes(courseNotes) {
     writeJSON(COURSE_NOTES_KEY, courseNotes);
+    notifyDataUpdated("local");
 
     const result = await api.saveCourseNotes(courseNotes);
 
@@ -220,7 +293,7 @@ export async function saveCourseNotes(courseNotes) {
         throw new Error(result.message || "Unable to save course notes.");
     }
 
-    await syncFromCloud();
+    refreshInBackground();
 
     return result;
 }
@@ -237,6 +310,7 @@ export async function saveCourseLessons(courseLessons) {
         .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
 
     writeJSON(COURSE_LESSONS_KEY, cleanLessons);
+    notifyDataUpdated("local");
 
     const result = await api.saveCourseLessons(cleanLessons);
 
@@ -244,7 +318,7 @@ export async function saveCourseLessons(courseLessons) {
         throw new Error(result.message || "Unable to save learning lessons.");
     }
 
-    await syncFromCloud();
+    refreshInBackground();
 
     return result;
 }
@@ -294,6 +368,7 @@ export async function saveLessonProgress(progress) {
     }
 
     writeJSON(LESSON_PROGRESS_KEY, nextProgress);
+    notifyDataUpdated("local");
 
     const result = await api.saveLessonProgress({
         lessonId,
@@ -305,7 +380,7 @@ export async function saveLessonProgress(progress) {
         throw new Error(result.message || "Unable to save lesson progress.");
     }
 
-    await syncFromCloud();
+    refreshInBackground();
 
     return result;
 }
@@ -324,6 +399,7 @@ export async function submitQuizResult(result) {
     };
 
     writeJSON(QUIZ_RESULTS_KEY, [...localResults, localResult]);
+    notifyDataUpdated("local");
 
     const response = await api.submitQuizResult(result);
 
@@ -331,7 +407,7 @@ export async function submitQuizResult(result) {
         throw new Error(response.message || "Unable to save quiz result.");
     }
 
-    await syncFromCloud();
+    refreshInBackground();
 
     return response;
 }
@@ -343,7 +419,16 @@ export async function approveAndSendActivationEmail(userId) {
         throw new Error(result.message || "Unable to approve account.");
     }
 
-    await syncFromCloud();
+    if (result.user) {
+        const nextUsers = getUsers().map(user =>
+            String(user.id) === String(result.user.id) ? result.user : user
+        );
+
+        writeJSON(USERS_KEY, nextUsers);
+        notifyDataUpdated("local");
+    }
+
+    refreshInBackground();
 
     return result;
 }
@@ -353,6 +438,15 @@ export async function sendLoginEmail(userId) {
 
     if (!result.success) {
         throw new Error(result.message || "Unable to send login email.");
+    }
+
+    if (result.user) {
+        const nextUsers = getUsers().map(user =>
+            String(user.id) === String(result.user.id) ? result.user : user
+        );
+
+        writeJSON(USERS_KEY, nextUsers);
+        notifyDataUpdated("local");
     }
 
     return result;
@@ -365,7 +459,7 @@ export async function generateFlashcardsFromQuestions() {
         throw new Error(result.message || "Unable to generate flashcards.");
     }
 
-    await syncFromCloud();
+    refreshInBackground();
 
     return result;
 }
@@ -413,6 +507,8 @@ export function clearAllLocalData() {
     localStorage.removeItem(COURSE_LESSONS_KEY);
     localStorage.removeItem(LESSON_PROGRESS_KEY);
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SYNC_META_KEY);
+    notifyDataUpdated("local");
 }
 
 export function exportBackup() {
