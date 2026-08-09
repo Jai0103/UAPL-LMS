@@ -1,0 +1,40 @@
+{
+  "id": "/UAPL-LMS/",
+  "name": "UAPL Training Portal",
+  "short_name": "UAPL LMS",
+  "description": "Apollo Global Academy UAPL learning, quiz, flashcards, notes, and student progress portal.",
+  "lang": "en-SG",
+  "start_url": "/UAPL-LMS/",
+  "scope": "/UAPL-LMS/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef3f8",
+  "theme_color": "#0f172a",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/UAPL-LMS/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/UAPL-LMS/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quiz Mode",
+      "short_name": "Quiz",
+      "url": "/UAPL-LMS/#/quiz"
+    },
+    {
+      "name": "Flashcards",
+      "short_name": "Cards",
+      "url": "/UAPL-LMS/#/flashcards"
+    }
+  ]
+}
