@@ -1,5 +1,3 @@
-import { DEFAULT_QUESTIONS } from "../data/questions";
-import { DEFAULT_USERS } from "../data/seedUsers";
 import { api } from "./api";
 
 const USERS_KEY = "uapl_lms_users_v2";
@@ -12,10 +10,82 @@ const LESSON_PROGRESS_KEY = "uapl_lms_lesson_progress_v1";
 const SESSION_KEY = "uapl_lms_session_v3";
 const THEME_KEY = "uapl_lms_theme_v1";
 const SYNC_META_KEY = "uapl_lms_sync_meta_v1";
+
 export const DATA_UPDATED_EVENT = "uapl:data-updated";
+
 const DEFAULT_SYNC_MAX_AGE_MS = 60000;
 
 let activeSyncPromise = null;
+let activeSyncToken = "";
+let activeSyncVersion = 0;
+let cacheVersion = 0;
+
+const PRIVATE_DATA_KEYS = [
+    USERS_KEY,
+    QUIZ_RESULTS_KEY,
+    LESSON_PROGRESS_KEY
+];
+
+const DATA_KEYS = [
+    ...PRIVATE_DATA_KEYS,
+    QUESTIONS_KEY,
+    FLASHCARDS_KEY,
+    COURSE_NOTES_KEY,
+    COURSE_LESSONS_KEY
+];
+
+function isLegacyPlaceholder(record) {
+    return [
+        record?.name,
+        record?.username,
+        record?.question,
+        record?.answer,
+        record?.explanation
+    ].some(value =>
+        /motherfather|motherfater|motherfaher/i.test(
+            String(value || "")
+        )
+    );
+}
+
+function clearPrivateData() {
+    PRIVATE_DATA_KEYS.forEach(key => writeJSON(key, []));
+    localStorage.removeItem(SYNC_META_KEY);
+    cacheVersion++;
+}
+
+function removeLegacyPlaceholders() {
+    let repaired = false;
+
+    [
+        USERS_KEY,
+        QUESTIONS_KEY,
+        FLASHCARDS_KEY
+    ].forEach(key => {
+        const records = readJSON(key, []);
+
+        if (!Array.isArray(records)) return;
+
+        const cleanRecords = records.filter(
+            record => !isLegacyPlaceholder(record)
+        );
+
+        if (cleanRecords.length !== records.length) {
+            writeJSON(key, cleanRecords);
+            repaired = true;
+        }
+    });
+
+    if (isLegacyPlaceholder(readJSON(SESSION_KEY, null))) {
+        localStorage.removeItem(SESSION_KEY);
+        clearPrivateData();
+        repaired = true;
+    }
+
+    if (repaired) {
+        localStorage.removeItem(SYNC_META_KEY);
+    }
+}
 
 function readJSON(key, fallback) {
     try {
@@ -44,22 +114,45 @@ function notifyDataUpdated(source = "local") {
 }
 
 function readSyncMeta() {
-    return readJSON(SYNC_META_KEY, {
-        lastSyncedAt: 0
+    const meta = readJSON(SYNC_META_KEY, null);
+
+    return meta && typeof meta === "object"
+        ? meta
+        : { lastSyncedAt: 0 };
+}
+
+function markSynced(session) {
+    writeJSON(SYNC_META_KEY, {
+        lastSyncedAt: Date.now(),
+        userId: String(session.id),
+        role: String(session.role || "").toLowerCase()
     });
 }
 
-function markSynced() {
-    writeJSON(SYNC_META_KEY, {
-        lastSyncedAt: Date.now()
-    });
+export function hasCachedTrainingData(session = getSession()) {
+    if (!session?.id || !session.sessionToken) return false;
+
+    const meta = readSyncMeta();
+
+    return (
+        Number(meta.lastSyncedAt) > 0 &&
+        String(meta.userId || "") === String(session.id) &&
+        String(meta.role || "").toLowerCase() ===
+            String(session.role || "").toLowerCase() &&
+        DATA_KEYS.every(key =>
+            Array.isArray(readJSON(key, null))
+        )
+    );
 }
 
 function shouldUseFreshCache(maxAgeMs) {
+    if (!hasCachedTrainingData()) return false;
+
     const meta = readSyncMeta();
     const lastSyncedAt = Number(meta?.lastSyncedAt || 0);
+    const age = Date.now() - lastSyncedAt;
 
-    return lastSyncedAt > 0 && Date.now() - lastSyncedAt < maxAgeMs;
+    return age >= 0 && age < maxAgeMs;
 }
 
 function refreshInBackground() {
@@ -85,21 +178,13 @@ function normalizeQuestion(question, index) {
     };
 }
 
-function questionsToFlashcards(questions) {
-    return questions.map((question, index) => ({
-        id: `flashcard-${question.id || index + 1}`,
-        category: question.category || "General UAS Knowledge",
-        question: question.question,
-        answer: question.options?.[question.answer] || "",
-        explanation: question.explanation || "",
-        status: "Active"
-    }));
-}
-
 function normalizeCourseLesson(lesson, index = 0) {
     return {
         id: lesson.id || `lesson-${index + 1}`,
-        module: lesson.module || lesson.category || "General UAS Knowledge",
+        module:
+            lesson.module ||
+            lesson.category ||
+            "General UAS Knowledge",
         title: lesson.title || "",
         description: lesson.description || "",
         videoUrl: lesson.videoUrl || "",
@@ -113,33 +198,24 @@ function normalizeCourseLesson(lesson, index = 0) {
 }
 
 export function initStorage() {
-    if (!localStorage.getItem(USERS_KEY)) {
-        writeJSON(USERS_KEY, DEFAULT_USERS || []);
-    }
+    removeLegacyPlaceholders();
 
-    if (!localStorage.getItem(QUESTIONS_KEY)) {
-        const questions = (DEFAULT_QUESTIONS || []).map(normalizeQuestion);
-        writeJSON(QUESTIONS_KEY, questions);
-    }
+    DATA_KEYS.forEach(key => {
+        if (!Array.isArray(readJSON(key, null))) {
+            writeJSON(key, []);
+        }
+    });
 
-    if (!localStorage.getItem(FLASHCARDS_KEY)) {
-        writeJSON(FLASHCARDS_KEY, questionsToFlashcards(getQuestions()));
-    }
-
-    if (!localStorage.getItem(COURSE_NOTES_KEY)) {
-        writeJSON(COURSE_NOTES_KEY, []);
-    }
-
-    if (!localStorage.getItem(QUIZ_RESULTS_KEY)) {
-        writeJSON(QUIZ_RESULTS_KEY, []);
-    }
-
-    if (!localStorage.getItem(COURSE_LESSONS_KEY)) {
-        writeJSON(COURSE_LESSONS_KEY, []);
-    }
-
-    if (!localStorage.getItem(LESSON_PROGRESS_KEY)) {
-        writeJSON(LESSON_PROGRESS_KEY, []);
+    if (
+        !hasCachedTrainingData() &&
+        (
+            localStorage.getItem(SYNC_META_KEY) ||
+            PRIVATE_DATA_KEYS.some(
+                key => readJSON(key, []).length
+            )
+        )
+    ) {
+        clearPrivateData();
     }
 }
 
@@ -149,6 +225,14 @@ export async function syncFromCloud(options = {}) {
         maxAgeMs = DEFAULT_SYNC_MAX_AGE_MS
     } = options;
 
+    const requestedSession = getSession();
+
+    if (!requestedSession?.sessionToken) {
+        throw new Error(
+            "Please sign in before loading training data."
+        );
+    }
+
     if (!force && shouldUseFreshCache(maxAgeMs)) {
         return {
             success: true,
@@ -157,14 +241,43 @@ export async function syncFromCloud(options = {}) {
         };
     }
 
-    if (activeSyncPromise) {
+    if (
+        activeSyncPromise &&
+        activeSyncToken === requestedSession.sessionToken &&
+        activeSyncVersion === cacheVersion
+    ) {
         return activeSyncPromise;
     }
 
-    activeSyncPromise = api.getBootstrap()
+    const requestedCacheVersion = cacheVersion;
+
+    const syncPromise = api.getBootstrap()
         .then(result => {
+            if (
+                cacheVersion !== requestedCacheVersion ||
+                getSession()?.sessionToken !==
+                    requestedSession.sessionToken
+            ) {
+                throw new Error(
+                    "Training sync was cancelled because the signed-in account changed."
+                );
+            }
+
             if (!result.success) {
-                throw new Error(result.message || "Unable to sync from training database.");
+                throw new Error(
+                    result.message ||
+                        "Unable to sync from training database."
+                );
+            }
+
+            if (result.currentUser) {
+                saveSession({
+                    ...requestedSession,
+                    ...result.currentUser,
+                    sessionToken: requestedSession.sessionToken,
+                    sessionExpiresAt:
+                        requestedSession.sessionExpiresAt
+                });
             }
 
             if (Array.isArray(result.users)) {
@@ -172,7 +285,10 @@ export async function syncFromCloud(options = {}) {
             }
 
             if (Array.isArray(result.questions)) {
-                writeJSON(QUESTIONS_KEY, result.questions.map(normalizeQuestion));
+                writeJSON(
+                    QUESTIONS_KEY,
+                    result.questions.map(normalizeQuestion)
+                );
             }
 
             if (Array.isArray(result.flashcards)) {
@@ -188,36 +304,36 @@ export async function syncFromCloud(options = {}) {
             }
 
             if (Array.isArray(result.courseLessons)) {
-                writeJSON(COURSE_LESSONS_KEY, result.courseLessons.map(normalizeCourseLesson));
+                writeJSON(
+                    COURSE_LESSONS_KEY,
+                    result.courseLessons.map(normalizeCourseLesson)
+                );
             }
 
             if (Array.isArray(result.lessonProgress)) {
-                writeJSON(LESSON_PROGRESS_KEY, result.lessonProgress);
+                writeJSON(
+                    LESSON_PROGRESS_KEY,
+                    result.lessonProgress
+                );
             }
 
-            if (result.currentUser) {
-                const currentSession = getSession();
-
-                if (currentSession) {
-                    saveSession({
-                        ...currentSession,
-                        ...result.currentUser,
-                        sessionToken: currentSession.sessionToken,
-                        sessionExpiresAt: currentSession.sessionExpiresAt
-                    });
-                }
-            }
-
-            markSynced();
+            markSynced(getSession());
             notifyDataUpdated("cloud");
 
             return result;
         })
         .finally(() => {
-            activeSyncPromise = null;
+            if (activeSyncPromise === syncPromise) {
+                activeSyncPromise = null;
+                activeSyncToken = "";
+            }
         });
 
-    return activeSyncPromise;
+    activeSyncPromise = syncPromise;
+    activeSyncToken = requestedSession.sessionToken;
+    activeSyncVersion = requestedCacheVersion;
+
+    return syncPromise;
 }
 
 export function getUsers() {
@@ -231,7 +347,9 @@ export async function saveUsers(users) {
     const result = await api.saveUsers(users);
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to save users.");
+        throw new Error(
+            result.message || "Unable to save users."
+        );
     }
 
     refreshInBackground();
@@ -252,7 +370,9 @@ export async function saveQuestions(questions) {
     const result = await api.saveQuestions(cleanQuestions);
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to save questions.");
+        throw new Error(
+            result.message || "Unable to save questions."
+        );
     }
 
     refreshInBackground();
@@ -271,7 +391,9 @@ export async function saveFlashcards(flashcards) {
     const result = await api.saveFlashcards(flashcards);
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to save flashcards.");
+        throw new Error(
+            result.message || "Unable to save flashcards."
+        );
     }
 
     refreshInBackground();
@@ -290,7 +412,9 @@ export async function saveCourseNotes(courseNotes) {
     const result = await api.saveCourseNotes(courseNotes);
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to save course notes.");
+        throw new Error(
+            result.message || "Unable to save course notes."
+        );
     }
 
     refreshInBackground();
@@ -301,13 +425,19 @@ export async function saveCourseNotes(courseNotes) {
 export function getCourseLessons() {
     return readJSON(COURSE_LESSONS_KEY, [])
         .map(normalizeCourseLesson)
-        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+        .sort(
+            (a, b) =>
+                Number(a.order || 0) - Number(b.order || 0)
+        );
 }
 
 export async function saveCourseLessons(courseLessons) {
     const cleanLessons = courseLessons
         .map(normalizeCourseLesson)
-        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+        .sort(
+            (a, b) =>
+                Number(a.order || 0) - Number(b.order || 0)
+        );
 
     writeJSON(COURSE_LESSONS_KEY, cleanLessons);
     notifyDataUpdated("local");
@@ -315,7 +445,9 @@ export async function saveCourseLessons(courseLessons) {
     const result = await api.saveCourseLessons(cleanLessons);
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to save learning lessons.");
+        throw new Error(
+            result.message || "Unable to save learning lessons."
+        );
     }
 
     refreshInBackground();
@@ -352,7 +484,8 @@ export async function saveLessonProgress(progress) {
         String(item.lessonId) === String(lessonId) &&
         (
             String(item.userId) === String(localRow.userId) ||
-            String(item.username).toLowerCase() === String(localRow.username).toLowerCase()
+            String(item.username).toLowerCase() ===
+                String(localRow.username).toLowerCase()
         )
     );
 
@@ -377,7 +510,9 @@ export async function saveLessonProgress(progress) {
     });
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to save lesson progress.");
+        throw new Error(
+            result.message || "Unable to save lesson progress."
+        );
     }
 
     refreshInBackground();
@@ -398,13 +533,19 @@ export async function submitQuizResult(result) {
         submittedAt: new Date().toISOString()
     };
 
-    writeJSON(QUIZ_RESULTS_KEY, [...localResults, localResult]);
+    writeJSON(
+        QUIZ_RESULTS_KEY,
+        [...localResults, localResult]
+    );
+
     notifyDataUpdated("local");
 
     const response = await api.submitQuizResult(result);
 
     if (!response.success) {
-        throw new Error(response.message || "Unable to save quiz result.");
+        throw new Error(
+            response.message || "Unable to save quiz result."
+        );
     }
 
     refreshInBackground();
@@ -416,12 +557,16 @@ export async function approveAndSendActivationEmail(userId) {
     const result = await api.approveAndSendActivationEmail(userId);
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to approve account.");
+        throw new Error(
+            result.message || "Unable to approve account."
+        );
     }
 
     if (result.user) {
         const nextUsers = getUsers().map(user =>
-            String(user.id) === String(result.user.id) ? result.user : user
+            String(user.id) === String(result.user.id)
+                ? result.user
+                : user
         );
 
         writeJSON(USERS_KEY, nextUsers);
@@ -437,12 +582,16 @@ export async function sendLoginEmail(userId) {
     const result = await api.sendLoginEmail(userId);
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to send login email.");
+        throw new Error(
+            result.message || "Unable to send login email."
+        );
     }
 
     if (result.user) {
         const nextUsers = getUsers().map(user =>
-            String(user.id) === String(result.user.id) ? result.user : user
+            String(user.id) === String(result.user.id)
+                ? result.user
+                : user
         );
 
         writeJSON(USERS_KEY, nextUsers);
@@ -456,7 +605,9 @@ export async function generateFlashcardsFromQuestions() {
     const result = await api.generateFlashcardsFromQuestions();
 
     if (!result.success) {
-        throw new Error(result.message || "Unable to generate flashcards.");
+        throw new Error(
+            result.message || "Unable to generate flashcards."
+        );
     }
 
     refreshInBackground();
@@ -466,6 +617,17 @@ export async function generateFlashcardsFromQuestions() {
 
 export function saveSession(session) {
     if (!session) return;
+
+    const previousSession = getSession();
+
+    if (
+        String(previousSession?.id || "") !==
+            String(session.id || "") ||
+        String(previousSession?.role || "").toLowerCase() !==
+            String(session.role || "").toLowerCase()
+    ) {
+        clearPrivateData();
+    }
 
     writeJSON(SESSION_KEY, {
         id: session.id,
@@ -488,6 +650,8 @@ export function getSession() {
 
 export function clearSession() {
     localStorage.removeItem(SESSION_KEY);
+    clearPrivateData();
+    notifyDataUpdated("local");
 }
 
 export function saveTheme(theme) {
@@ -499,6 +663,8 @@ export function getTheme() {
 }
 
 export function clearAllLocalData() {
+    cacheVersion++;
+
     localStorage.removeItem(USERS_KEY);
     localStorage.removeItem(QUESTIONS_KEY);
     localStorage.removeItem(FLASHCARDS_KEY);
@@ -508,6 +674,7 @@ export function clearAllLocalData() {
     localStorage.removeItem(LESSON_PROGRESS_KEY);
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(SYNC_META_KEY);
+
     notifyDataUpdated("local");
 }
 
@@ -537,6 +704,7 @@ export async function restoreBackup(backup) {
 
     if (Array.isArray(backup.questions)) {
         const questions = backup.questions.map(normalizeQuestion);
+
         writeJSON(QUESTIONS_KEY, questions);
         await api.saveQuestions(questions);
     }
@@ -552,7 +720,10 @@ export async function restoreBackup(backup) {
     }
 
     if (Array.isArray(backup.courseLessons)) {
-        const lessons = backup.courseLessons.map(normalizeCourseLesson);
+        const lessons = backup.courseLessons.map(
+            normalizeCourseLesson
+        );
+
         writeJSON(COURSE_LESSONS_KEY, lessons);
         await api.saveCourseLessons(lessons);
     }
