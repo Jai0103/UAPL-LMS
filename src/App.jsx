@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { AlertTriangle, LogOut, RotateCcw } from "lucide-react";
 import { api } from "./lib/api";
 import {
     clearSession,
     getSession,
     getTheme,
+    hasCachedTrainingData,
     initStorage,
     saveSession,
     saveTheme,
@@ -35,7 +37,10 @@ function ProtectedRoute({ session, children }) {
 
 function AdminRoute({ session, children }) {
     if (!session) return <Navigate to="/login" replace />;
-    if (session.role !== "admin") return <Navigate to="/dashboard" replace />;
+    if (session.role !== "admin") {
+        return <Navigate to="/dashboard" replace />;
+    }
+
     return children;
 }
 
@@ -43,7 +48,8 @@ export default function App() {
     const [session, setSession] = useState(null);
     const [theme, setTheme] = useState("light");
     const [isBooting, setIsBooting] = useState(true);
-    const [bootMessage] = useState("Preparing dashboard...");
+    const [bootError, setBootError] = useState("");
+
     const validationRef = useRef({
         running: false,
         lastRun: 0
@@ -56,20 +62,19 @@ export default function App() {
         const savedSession = getSession();
 
         setTheme(savedTheme);
-        document.documentElement.classList.toggle("dark", savedTheme === "dark");
+
+        document.documentElement.classList.toggle(
+            "dark",
+            savedTheme === "dark"
+        );
 
         if (savedSession?.sessionToken) {
-            setSession(savedSession);
-
-            syncFromCloud({ maxAgeMs: 90000 }).catch(error => {
-                console.error("Background sync failed:", error);
-            });
+            prepareSignedInApp(savedSession);
         } else {
             clearSession();
             setSession(null);
+            setIsBooting(false);
         }
-
-        setIsBooting(false);
     }, []);
 
     useEffect(() => {
@@ -94,13 +99,22 @@ export default function App() {
         }
 
         window.addEventListener("focus", handleFocus);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        );
 
         return () => {
             clearTimeout(firstValidation);
             clearInterval(interval);
+
             window.removeEventListener("focus", handleFocus);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
         };
     }, [session]);
 
@@ -111,8 +125,7 @@ export default function App() {
         let idleTimer;
 
         function logoutDueToInactivity() {
-            clearSession();
-            setSession(null);
+            handleLogout();
 
             window.alert(
                 "You have been signed out because your session was inactive for 5 minutes."
@@ -148,17 +161,48 @@ export default function App() {
         };
     }, [session]);
 
-    function handleLogin(nextSession) {
-        setSession(nextSession);
+    async function prepareSignedInApp(nextSession) {
+        const hasTrustedCache = hasCachedTrainingData(nextSession);
 
-        syncFromCloud({ maxAgeMs: 90000 }).catch(error => {
-            console.error("Background sync failed:", error);
-        });
+        setSession(nextSession);
+        setBootError("");
+        setIsBooting(!hasTrustedCache);
+
+        try {
+            await syncFromCloud({
+                force: !hasTrustedCache,
+                maxAgeMs: 90000
+            });
+        } catch (error) {
+            console.error("Training data sync failed:", error);
+
+            if (
+                !hasTrustedCache &&
+                getSession()?.sessionToken === nextSession.sessionToken
+            ) {
+                setBootError(
+                    "We couldn't load your training data. Please check your connection and try again."
+                );
+            }
+        } finally {
+            if (
+                getSession()?.sessionToken === nextSession.sessionToken
+            ) {
+                setIsBooting(false);
+            }
+        }
+    }
+
+    function handleLogin(nextSession) {
+        saveSession(nextSession);
+        prepareSignedInApp(nextSession);
     }
 
     function handleLogout() {
         clearSession();
         setSession(null);
+        setIsBooting(false);
+        setBootError("");
     }
 
     function toggleTheme() {
@@ -166,7 +210,11 @@ export default function App() {
 
         setTheme(nextTheme);
         saveTheme(nextTheme);
-        document.documentElement.classList.toggle("dark", nextTheme === "dark");
+
+        document.documentElement.classList.toggle(
+            "dark",
+            nextTheme === "dark"
+        );
     }
 
     function isAccountExpired(user) {
@@ -179,15 +227,16 @@ export default function App() {
         if (Number.isNaN(expiry.getTime())) return false;
 
         expiry.setHours(23, 59, 59, 999);
+
         return today > expiry;
     }
 
     function forceLogout(message) {
-        clearSession();
-        setSession(null);
+        handleLogout();
 
         window.alert(
-            message || "Your session is no longer active. Please sign in again."
+            message ||
+                "Your session is no longer active. Please sign in again."
         );
     }
 
@@ -215,23 +264,36 @@ export default function App() {
             "expiryDate",
             "createdAt",
             "lastLogin"
-        ].some(key => String(previousSession[key] || "") !== String(nextSession[key] || ""));
+        ].some(
+            key =>
+                String(previousSession[key] || "") !==
+                String(nextSession[key] || "")
+        );
     }
 
     async function validateCurrentSession(options = {}) {
-        const { force = false, minIntervalMs = 45000 } = options;
+        const {
+            force = false,
+            minIntervalMs = 45000
+        } = options;
+
         const now = Date.now();
 
         if (validationRef.current.running) return;
 
-        if (!force && now - validationRef.current.lastRun < minIntervalMs) {
+        if (
+            !force &&
+            now - validationRef.current.lastRun < minIntervalMs
+        ) {
             return;
         }
 
         const currentSession = getSession();
 
         if (!currentSession?.sessionToken) {
-            forceLogout("Your secure session has expired. Please sign in again.");
+            forceLogout(
+                "Your secure session has expired. Please sign in again."
+            );
             return;
         }
 
@@ -243,9 +305,15 @@ export default function App() {
 
             if (!result.success) {
                 if (shouldForceLogoutFromMessage(result.message)) {
-                    forceLogout(result.message || "Your session has expired. Please sign in again.");
+                    forceLogout(
+                        result.message ||
+                            "Your session has expired. Please sign in again."
+                    );
                 } else {
-                    console.warn("Session validation skipped:", result.message);
+                    console.warn(
+                        "Session validation skipped:",
+                        result.message
+                    );
                 }
 
                 return;
@@ -276,7 +344,11 @@ export default function App() {
 
             setSession(previousSession => {
                 if (!previousSession) return previousSession;
-                return hasSessionProfileChanged(previousSession, nextSession)
+
+                return hasSessionProfileChanged(
+                    previousSession,
+                    nextSession
+                )
                     ? nextSession
                     : previousSession;
             });
@@ -287,12 +359,20 @@ export default function App() {
         }
     }
 
-    if (isBooting) {
+    if (isBooting || bootError) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-100 px-6 dark:bg-slate-950">
+            <div
+                role={bootError ? "alert" : "status"}
+                aria-busy={isBooting}
+                className="flex min-h-screen items-center justify-center bg-slate-100 px-6 dark:bg-slate-950"
+            >
                 <div className="w-full max-w-md rounded-3xl border border-white/70 bg-white/85 p-8 text-center shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
                     <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
+                        {bootError ? (
+                            <AlertTriangle className="h-6 w-6" />
+                        ) : (
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
+                        )}
                     </div>
 
                     <h1 className="text-xl font-black text-slate-950 dark:text-white">
@@ -300,8 +380,38 @@ export default function App() {
                     </h1>
 
                     <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                        {bootMessage}
+                        {bootError || "Loading your training data..."}
                     </p>
+
+                    {bootError && (
+                        <div className="mt-6 flex flex-wrap justify-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const currentSession = getSession();
+
+                                    if (currentSession?.sessionToken) {
+                                        prepareSignedInApp(currentSession);
+                                    } else {
+                                        handleLogout();
+                                    }
+                                }}
+                                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-sky-600 px-4 text-sm font-bold text-white hover:bg-sky-700"
+                            >
+                                <RotateCcw className="h-4 w-4" />
+                                Try again
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                Sign out
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -365,7 +475,11 @@ export default function App() {
                     </ProtectedRoute>
                 }
             >
-                <Route path="/dashboard" element={<Dashboard session={session} />} />
+                <Route
+                    path="/dashboard"
+                    element={<Dashboard session={session} />}
+                />
+
                 <Route
                     path="/learning"
                     element={
@@ -374,10 +488,26 @@ export default function App() {
                         </AdminRoute>
                     }
                 />
-                <Route path="/quiz" element={<Quiz session={session} />} />
-                <Route path="/flashcards" element={<Flashcards session={session} />} />
-                <Route path="/course-notes" element={<CourseNotes session={session} />} />
-                <Route path="/settings" element={<Settings session={session} />} />
+
+                <Route
+                    path="/quiz"
+                    element={<Quiz session={session} />}
+                />
+
+                <Route
+                    path="/flashcards"
+                    element={<Flashcards session={session} />}
+                />
+
+                <Route
+                    path="/course-notes"
+                    element={<CourseNotes session={session} />}
+                />
+
+                <Route
+                    path="/settings"
+                    element={<Settings session={session} />}
+                />
 
                 <Route
                     path="/quiz-manager"
@@ -434,7 +564,10 @@ export default function App() {
                 />
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route
+                path="*"
+                element={<Navigate to="/" replace />}
+            />
         </Routes>
     );
 }
