@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     AlertTriangle,
@@ -13,6 +13,7 @@ import {
     Plane,
     ShieldCheck
 } from "lucide-react";
+
 import { api } from "../lib/api";
 import { saveSession } from "../lib/storage";
 
@@ -82,20 +83,27 @@ function DisclaimerModal({ open, onClose }) {
 
                         <div className="mt-3 space-y-3 text-justify text-sm leading-7 text-slate-600 dark:text-slate-300">
                             <p>
-                                This project is an independent educational resource and is not affiliated with,
-                                endorsed by, or connected to the Civil Aviation Authority of Singapore (CAAS).
+                                This project is an independent educational
+                                resource and is not affiliated with, endorsed
+                                by, or connected to the Civil Aviation Authority
+                                of Singapore (CAAS).
                             </p>
 
                             <p>
-                                The materials, questions, flashcards, and notes in this portal are provided for
-                                training, revision, and self-assessment purposes only. They should not be treated
-                                as official examination content, legal advice, or regulatory guidance.
+                                The materials, questions, flashcards, and notes
+                                in this portal are provided for training,
+                                revision, and self-assessment purposes only.
+                                They should not be treated as official
+                                examination content, legal advice, or regulatory
+                                guidance.
                             </p>
 
                             <p>
-                                Users should always refer to the latest official CAAS publications, regulations,
-                                advisories, and approved training materials for authoritative requirements before
-                                conducting any unmanned aircraft activity.
+                                Users should always refer to the latest official
+                                CAAS publications, regulations, advisories, and
+                                approved training materials for authoritative
+                                requirements before conducting any unmanned
+                                aircraft activity.
                             </p>
                         </div>
                     </div>
@@ -123,12 +131,23 @@ export default function Login({ onLogin }) {
 
     const [showPassword, setShowPassword] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [requestStatus, setRequestStatus] = useState("");
     const [message, setMessage] = useState(null);
     const [showDisclaimer, setShowDisclaimer] = useState(false);
 
+    const requestRef = useRef(null);
+    const welcomeTimerRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            requestRef.current?.abort();
+            clearTimeout(welcomeTimerRef.current);
+        };
+    }, []);
+
     function updateForm(field, value) {
-        setForm(prev => ({
-            ...prev,
+        setForm(previous => ({
+            ...previous,
             [field]: value
         }));
     }
@@ -136,27 +155,58 @@ export default function Login({ onLogin }) {
     async function handleSubmit(event) {
         event.preventDefault();
 
+        if (requestRef.current) return;
+
         if (!form.username.trim() || !form.password) {
             setMessage({
                 type: "warning",
                 title: "Missing login details",
                 message: "Please enter your username and password."
             });
+
             return;
         }
 
+        const controller = new AbortController();
+
+        requestRef.current = controller;
+
+        let signingIn = false;
+
+        setMessage(null);
         setSubmitting(true);
+        setRequestStatus("Signing in...");
 
         try {
-            const result = await api.login(form.username, form.password);
+            const result = await api.login(
+                form.username.trim(),
+                form.password,
+                {
+                    signal: controller.signal,
+                    onRetry: () => {
+                        setRequestStatus("Reconnecting...");
+                    }
+                }
+            );
+
+            if (controller.signal.aborted) return;
 
             if (!result.success) {
                 setMessage({
                     type: "warning",
                     title: "Sign in failed",
-                    message: result.message || "Invalid username or password."
+                    message:
+                        result.message ||
+                        "Invalid username or password."
                 });
+
                 return;
+            }
+
+            if (!result.user?.id || !result.sessionToken) {
+                throw new Error(
+                    "Unable to start your secure session. Please contact the administrator."
+                );
             }
 
             const session = {
@@ -167,23 +217,51 @@ export default function Login({ onLogin }) {
 
             saveSession(session);
 
+            signingIn = true;
+            setRequestStatus("Welcome back...");
+
             setMessage({
                 type: "success",
                 title: "Welcome back",
-                message: "Your secure session is ready. Preparing your dashboard..."
+                message:
+                    "Your secure session is ready. Preparing your dashboard..."
             });
 
-            setTimeout(() => {
+            welcomeTimerRef.current = setTimeout(() => {
                 onLogin(session);
             }, 250);
         } catch (error) {
+            if (
+                controller.signal.aborted ||
+                error.code === "CANCELLED"
+            ) {
+                return;
+            }
+
             setMessage({
                 type: "warning",
-                title: "Connection error",
-                message: error.message || "Unable to connect to the training portal."
+                title:
+                    error.code === "OFFLINE"
+                        ? "You're offline"
+                        : error.code === "SERVICE_BUSY"
+                            ? "Training service busy"
+                            : "Unable to sign in",
+                message:
+                    error.message ||
+                    "Unable to connect to the training portal."
             });
         } finally {
-            setSubmitting(false);
+            if (!signingIn && !controller.signal.aborted) {
+                setSubmitting(false);
+                setRequestStatus("");
+            }
+
+            if (
+                !signingIn &&
+                requestRef.current === controller
+            ) {
+                requestRef.current = null;
+            }
         }
     }
 
@@ -216,8 +294,9 @@ export default function Login({ onLogin }) {
                                     </h1>
 
                                     <p className="mt-4 max-w-md text-sm font-semibold leading-7 text-sky-100">
-                                        A premium aviation learning dashboard for quiz practice,
-                                        flashcards, module progress, and course notes.
+                                        A premium aviation learning dashboard
+                                        for quiz practice, flashcards, module
+                                        progress, and course notes.
                                     </p>
                                 </div>
 
@@ -225,33 +304,46 @@ export default function Login({ onLogin }) {
                                     <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
                                         <div className="flex items-center gap-3">
                                             <BookOpen className="h-5 w-5 text-sky-200" />
-                                            <p className="text-sm font-black">Learn.</p>
+
+                                            <p className="text-sm font-black">
+                                                Learn.
+                                            </p>
                                         </div>
 
                                         <p className="mt-2 text-xs leading-6 text-sky-100">
-                                            Review structured UAPL training notes and aviation learning modules.
+                                            Review structured UAPL training
+                                            notes and aviation learning modules.
                                         </p>
                                     </div>
 
                                     <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
                                         <div className="flex items-center gap-3">
                                             <ClipboardCheck className="h-5 w-5 text-emerald-300" />
-                                            <p className="text-sm font-black">Practice.</p>
+
+                                            <p className="text-sm font-black">
+                                                Practice.
+                                            </p>
                                         </div>
 
                                         <p className="mt-2 text-xs leading-6 text-sky-100">
-                                            Strengthen recall through quizzes, flashcards, and module-based revision.
+                                            Strengthen recall through quizzes,
+                                            flashcards, and module-based
+                                            revision.
                                         </p>
                                     </div>
 
                                     <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
                                         <div className="flex items-center gap-3">
                                             <Award className="h-5 w-5 text-amber-300" />
-                                            <p className="text-sm font-black">Certify.</p>
+
+                                            <p className="text-sm font-black">
+                                                Certify.
+                                            </p>
                                         </div>
 
                                         <p className="mt-2 text-xs leading-6 text-sky-100">
-                                            Track readiness and focus on weak modules before assessment day.
+                                            Track readiness and focus on weak
+                                            modules before assessment day.
                                         </p>
                                     </div>
                                 </div>
@@ -273,10 +365,14 @@ export default function Login({ onLogin }) {
                                 </h2>
 
                                 <p className="mt-2 text-center text-sm font-semibold leading-6 text-slate-500 dark:text-slate-400">
-                                    Enter your credentials to continue to your UAPL dashboard.
+                                    Enter your credentials to continue to your
+                                    UAPL dashboard.
                                 </p>
 
-                                <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+                                <form
+                                    onSubmit={handleSubmit}
+                                    className="mt-8 space-y-4"
+                                >
                                     <div>
                                         <label className="text-sm font-black text-slate-700 dark:text-slate-200">
                                             Username
@@ -284,7 +380,13 @@ export default function Login({ onLogin }) {
 
                                         <input
                                             value={form.username}
-                                            onChange={event => updateForm("username", event.target.value)}
+                                            disabled={submitting}
+                                            onChange={event =>
+                                                updateForm(
+                                                    "username",
+                                                    event.target.value
+                                                )
+                                            }
                                             autoComplete="username"
                                             className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                                             placeholder="Enter username"
@@ -299,8 +401,18 @@ export default function Login({ onLogin }) {
                                         <div className="relative mt-2">
                                             <input
                                                 value={form.password}
-                                                onChange={event => updateForm("password", event.target.value)}
-                                                type={showPassword ? "text" : "password"}
+                                                disabled={submitting}
+                                                onChange={event =>
+                                                    updateForm(
+                                                        "password",
+                                                        event.target.value
+                                                    )
+                                                }
+                                                type={
+                                                    showPassword
+                                                        ? "text"
+                                                        : "password"
+                                                }
                                                 autoComplete="current-password"
                                                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm font-bold outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                                                 placeholder="Enter password"
@@ -308,9 +420,17 @@ export default function Login({ onLogin }) {
 
                                             <button
                                                 type="button"
-                                                onClick={() => setShowPassword(value => !value)}
+                                                onClick={() =>
+                                                    setShowPassword(
+                                                        value => !value
+                                                    )
+                                                }
                                                 className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-                                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                                aria-label={
+                                                    showPassword
+                                                        ? "Hide password"
+                                                        : "Show password"
+                                                }
                                             >
                                                 {showPassword ? (
                                                     <EyeOff className="h-4 w-4" />
@@ -331,7 +451,12 @@ export default function Login({ onLogin }) {
                                         ) : (
                                             <LockKeyhole className="h-4 w-4" />
                                         )}
-                                        {submitting ? "Signing in..." : "Sign In"}
+
+                                        <span aria-live="polite">
+                                            {submitting
+                                                ? requestStatus
+                                                : "Sign In"}
+                                        </span>
                                     </button>
                                 </form>
 
@@ -353,11 +478,18 @@ export default function Login({ onLogin }) {
 
                                 <div className="mt-8 border-t border-slate-200 pt-5 text-center dark:border-slate-800">
                                     <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                        <span>Version 2.0 • Powered by: Jairus Github Repo </span>
+                                        <span>
+                                            Version 2.0 • Powered by: Jairus
+                                            Github Repo
+                                        </span>
+
                                         <span>•</span>
+
                                         <button
                                             type="button"
-                                            onClick={() => setShowDisclaimer(true)}
+                                            onClick={() =>
+                                                setShowDisclaimer(true)
+                                            }
                                             className="text-sky-700 underline-offset-4 transition hover:text-sky-900 hover:underline dark:text-sky-300"
                                         >
                                             Disclaimer
